@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # DynamoDB Local
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: ecommerce-dynamodb
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    networks:
+      - ecommerce-network
+
+  # OpenSearch Local
+  opensearch:
+    image: opensearchproject/opensearch:2.5.0
+    container_name: ecommerce-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks:
+      - ecommerce-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DYNAMODB_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - USER_TABLE=users
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+    depends_on:
+      - dynamodb
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # Product Service
+  product-service:
+    build:
+      context: ./services/product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DYNAMODB_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://dynamodb:8000
+      - PRODUCT_TABLE=products
+      - AWS_ACCESS_KEY_ID=dummy
+      - AWS_SECRET_ACCESS_KEY=dummy
+    depends_on:
+      - dynamodb
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # Search Service
+  search-service:
+    build:
+      context: ./services/search-service
+      dockerfile: Dockerfile
+    container_name: search-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - OPENSEARCH_ENDPOINT=http://opensearch:9200
+      - OPENSEARCH_INDEX=products
+    depends_on:
+      - opensearch
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_USER_SERVICE_URL=http://localhost:3001
+      - REACT_APP_PRODUCT_SERVICE_URL=http://localhost:3002
+      - REACT_APP_SEARCH_SERVICE_URL=http://localhost:3003
+    depends_on:
+      - user-service
+      - product-service
+      - search-service
+    networks:
+      - ecommerce-network
+    restart: unless-stopped
+
+volumes:
+  opensearch-data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

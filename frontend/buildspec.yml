@@ -1,0 +1,39 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPOSITORY_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-7)
+      - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo Image tag: $IMAGE_TAG
+      - echo Setting deployment GUID...
+      - export REACT_APP_DEPLOYMENT_GUID="PROD-${COMMIT_HASH}"
+      - echo Deployment GUID: $REACT_APP_DEPLOYMENT_GUID
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building React application...
+      - npm ci
+      - npm run build
+      - echo Building the Docker image...
+      - docker build -t $ECR_REPOSITORY_URI:$IMAGE_TAG -t $ECR_REPOSITORY_URI:latest --build-arg REACT_APP_DEPLOYMENT_GUID=$REACT_APP_DEPLOYMENT_GUID .
+      - echo Build completed on `date`
+
+  post_build:
+    commands:
+      - echo Pushing the Docker images...
+      - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+      - docker push $ECR_REPOSITORY_URI:latest
+      - echo Writing image definitions file...
+      - printf '[{"name":"frontend","imageUri":"%s"}]' $ECR_REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - cat imagedefinitions.json
+
+cache:
+  paths:
+    - 'frontend/node_modules/**/*'
+
+artifacts:
+  files: imagedefinitions.json
