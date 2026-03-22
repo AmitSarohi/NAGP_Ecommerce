@@ -48,7 +48,7 @@ metadata:
   name: frontend-config
   namespace: ecommerce
 data:
-  REACT_APP_USER_SERVICE_URL: "http://user-service:3001"
+  REACT_APP_USER_SERVICE_URL: "/api/user"
   REACT_APP_PRODUCT_SERVICE_URL: "http://product-service:3002"
   REACT_APP_SEARCH_SERVICE_URL: "http://search-service:3003"
   REACT_APP_DEPLOYMENT_GUID: "PROD-$(date +%s)"
