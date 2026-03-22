@@ -1,4 +1,6 @@
 const express = require('express');
+const AWS = require('aws-sdk');
+const dynamodb = new AWS.DynamoDB();
 const { docClient, USER_TABLE } = require('../config/database');
 
 const router = express.Router();
@@ -48,7 +50,7 @@ router.get('/', async (req, res) => {
   try {
     // Check database connectivity
     const dbStartTime = Date.now();
-    await docClient.get({
+    await dynamodb.get({
       TableName: USER_TABLE,
       Key: { userId: 'health-check' },
     }).promise().catch(() => {
@@ -104,7 +106,7 @@ router.get('/', async (req, res) => {
 router.get('/ready', async (req, res) => {
   try {
     // Check if service can handle requests
-    await docClient.describeTable({
+    await dynamodb.describeTable({
       TableName: USER_TABLE,
     }).promise();
 

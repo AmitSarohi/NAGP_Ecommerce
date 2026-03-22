@@ -43,8 +43,7 @@ const initializeDynamoDB = async () => {
             ],
             Projection: {
               ProjectionType: 'ALL',
-            },
-            BillingMode: 'PAY_PER_REQUEST',
+            }
           },
           {
             IndexName: 'SkuIndex',
@@ -53,8 +52,7 @@ const initializeDynamoDB = async () => {
             ],
             Projection: {
               ProjectionType: 'ALL',
-            },
-            BillingMode: 'PAY_PER_REQUEST',
+            }
           },
         ],
         BillingMode: 'PAY_PER_REQUEST',
@@ -88,8 +86,7 @@ const initializeDynamoDB = async () => {
             ],
             Projection: {
               ProjectionType: 'ALL',
-            },
-            BillingMode: 'PAY_PER_REQUEST',
+            }
           },
         ],
         BillingMode: 'PAY_PER_REQUEST',

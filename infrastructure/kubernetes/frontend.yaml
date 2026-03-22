@@ -7,7 +7,7 @@ metadata:
     app: frontend
     version: v1
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: frontend
@@ -17,15 +17,28 @@ spec:
         app: frontend
         version: v1
     spec:
+      imagePullSecrets:
+        - name: ecr-secret
       containers:
       - name: frontend
-        image: <aws-account-id>.dkr.ecr.<region>.amazonaws.com/frontend:latest
+        image: 160823835826.dkr.ecr.eu-north-1.amazonaws.com/frontend:latest  
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
           name: http
+
         envFrom:
         - configMapRef:
             name: frontend-config
+
+        volumeMounts:
+        - name: nginx-tmp
+          mountPath: /tmp
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-run
+          mountPath: /var/run
+
         resources:
           requests:
             memory: "64Mi"
@@ -33,6 +46,7 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "200m"
+
         livenessProbe:
           httpGet:
             path: /health
@@ -41,6 +55,7 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
+
         readinessProbe:
           httpGet:
             path: /
@@ -49,6 +64,7 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+
         securityContext:
           runAsNonRoot: true
           runAsUser: 1001
@@ -57,9 +73,17 @@ spec:
           capabilities:
             drop:
             - ALL
-      imagePullSecrets:
-      - name: registry-secret
+
+      volumes:
+      - name: nginx-tmp
+        emptyDir: {}
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
+
       restartPolicy: Always
+
 ---
 apiVersion: v1
 kind: Service
@@ -77,6 +101,7 @@ spec:
     targetPort: 80
     protocol: TCP
   type: ClusterIP
+
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler

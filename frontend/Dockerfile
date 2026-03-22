@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --omit=dev && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -32,8 +32,8 @@ COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Create non-root user
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001 -G nginx
+RUN addgroup -S nginx || true && \
+    adduser -S nginx -G nginx || true
 
 # Change ownership of nginx directories
 RUN chown -R nginx:nginx /var/cache/nginx && \

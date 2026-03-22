@@ -1,4 +1,6 @@
 const express = require('express');
+const AWS = require('aws-sdk');
+const dynamodb = new AWS.DynamoDB();
 const { docClient, PRODUCT_TABLE, CATEGORY_TABLE } = require('../config/database');
 
 const router = express.Router();
@@ -109,13 +111,12 @@ router.get('/', async (req, res) => {
  */
 router.get('/ready', async (req, res) => {
   try {
-    // Check if service can handle requests
     await Promise.all([
-      docClient.describeTable({
+      dynamodb.describeTable({
         TableName: PRODUCT_TABLE,
       }).promise(),
-      
-      docClient.describeTable({
+
+      dynamodb.describeTable({
         TableName: CATEGORY_TABLE,
       }).promise(),
     ]);
@@ -124,8 +125,10 @@ router.get('/ready', async (req, res) => {
       status: 'ready',
       timestamp: new Date().toISOString(),
     });
+
   } catch (error) {
     console.error('Readiness check failed:', error);
+
     res.status(503).json({
       status: 'not ready',
       timestamp: new Date().toISOString(),
@@ -133,7 +136,6 @@ router.get('/ready', async (req, res) => {
     });
   }
 });
-
 /**
  * @swagger
  * /health/live:
