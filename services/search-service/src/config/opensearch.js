@@ -10,8 +10,8 @@ const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'products';
 const client = new Client({
   node: OPENSEARCH_ENDPOINT,
   auth: {
-    username: OPENSEARCH_USERNAME,
-    password: OPENSEARCH_PASSWORD,
+    username: process.env.OPENSEARCH_USERNAME || "admin",
+    password: process.env.OPENSEARCH_PASSWORD || "admin",
   },
   ssl: {
     rejectUnauthorized: false, // For development only
@@ -22,7 +22,7 @@ const client = new Client({
 const initializeOpenSearch = async () => {
   try {
     console.log('Initializing OpenSearch...');
-    
+    await waitForOpenSearch();
     // Check if OpenSearch is accessible
     const health = await client.cluster.health({});
     console.log('OpenSearch cluster health:', health.body.status);
@@ -425,6 +425,20 @@ const searchOperations = {
       throw error;
     }
   },
+};
+
+const waitForOpenSearch = async (retries = 15, delay = 5000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const health = await client.cluster.health({});
+      console.log("OpenSearch cluster health:", health.body.status);
+      return;
+    } catch (err) {
+      console.log(`OpenSearch not ready. Retry ${i + 1}/${retries}...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("OpenSearch never became ready");
 };
 
 module.exports = {
