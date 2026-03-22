@@ -80,7 +80,7 @@ jobs:
       - name: Apply base configs
         run: |
           kubectl apply -f infrastructure/kubernetes/configmaps.yaml
-          kubectl apply -f infrastructure/kubernetes/secrets.yaml
+          
 
       # 9️⃣ Deploy all services
       - name: Deploy to EKS
