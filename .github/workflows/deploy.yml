@@ -1,19 +1,24 @@
-name: Deploy to AWS EKS
+name: Deploy to Production
 
 on:
-  push: 
+  push:
     branches:
-      - feature/my-changes
+      - feature/my-changes   # change to main later
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+
     env:
       AWS_REGION: eu-north-1
+      ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com
+
     steps:
+      # 1️⃣ Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2️⃣ Configure AWS
       - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -21,37 +26,90 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # 3️⃣ Login to ECR
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & Push Image
+      # 4️⃣ Build & Push ALL Images
+      - name: Build & Push Images
         run: |
+          set -e
+
+          # FRONTEND
+          docker build -t frontend ./frontend
+          docker tag frontend:latest $ECR_REGISTRY/frontend:${{ github.sha }}
+          docker push $ECR_REGISTRY/frontend:${{ github.sha }}
+
+          # PRODUCT SERVICE
           docker build -t product-service ./services/product-service
-          docker tag product-service:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/product-service:${{ github.sha }}
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/product-service:${{ github.sha }}
-     
+          docker tag product-service:latest $ECR_REGISTRY/product-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/product-service:${{ github.sha }}
+
+          # USER SERVICE
+          docker build -t user-service ./services/user-service
+          docker tag user-service:latest $ECR_REGISTRY/user-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/user-service:${{ github.sha }}
+
+          # SEARCH SERVICE
+          docker build -t search-service ./services/search-service
+          docker tag search-service:latest $ECR_REGISTRY/search-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/search-service:${{ github.sha }}
+
+      # 5️⃣ Install kubectl (stable way)
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: 'v1.29.0'
 
       - name: Verify kubectl
-        run: kubectl version --client    
+        run: kubectl version --client
 
+      # 6️⃣ Configure kubeconfig
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --region $AWS_REGION --name ${{ secrets.EKS_CLUSTER_NAME }}
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name ${{ secrets.EKS_CLUSTER_NAME }}
 
+      # 7️⃣ Ensure namespace exists
+      - name: Create namespace
+        run: |
+          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+
+      # 8️⃣ Apply base configs
+      - name: Apply base configs
+        run: |
+          kubectl apply -f infrastructure/kubernetes/configmaps.yaml
+          kubectl apply -f infrastructure/kubernetes/secrets.yaml
+
+      # 9️⃣ Deploy all services
       - name: Deploy to EKS
         run: |
+          kubectl apply -f infrastructure/kubernetes/frontend.yaml
           kubectl apply -f infrastructure/kubernetes/product-service.yaml
+          kubectl apply -f infrastructure/kubernetes/user-service.yaml
+          kubectl apply -f infrastructure/kubernetes/search-service.yaml
 
-      - name: Update image (trigger rollout)
+      # 🔟 Update images (forces rollout)
+      - name: Update images (trigger rollout)
         run: |
-          kubectl set image deployment/product-service \
-            product-service=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/product-service:${{ github.sha }} \
-            -n ecommerce
+          kubectl set image deployment/frontend \
+            frontend=$ECR_REGISTRY/frontend:${{ github.sha }} -n ecommerce
 
+          kubectl set image deployment/product-service \
+            product-service=$ECR_REGISTRY/product-service:${{ github.sha }} -n ecommerce
+
+          kubectl set image deployment/user-service \
+            user-service=$ECR_REGISTRY/user-service:${{ github.sha }} -n ecommerce
+
+          kubectl set image deployment/search-service \
+            search-service=$ECR_REGISTRY/search-service:${{ github.sha }} -n ecommerce
+
+      # 1️⃣1️⃣ Verify rollout (VERY IMPORTANT)
       - name: Verify rollout
         run: |
+          kubectl rollout status deployment/frontend -n ecommerce
           kubectl rollout status deployment/product-service -n ecommerce
+          kubectl rollout status deployment/user-service -n ecommerce
+          kubectl rollout status deployment/search-service -n ecommerce
+
