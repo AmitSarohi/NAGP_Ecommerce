@@ -93,7 +93,7 @@ const authReducer = (state, action) => {
       return state;
   }
 };
-const BASE_URL = "/api/user";
+const BASE_URL = "/api";
 // API service
 const authService = {
   // Set up axios defaults
@@ -129,7 +129,7 @@ const authService = {
   
   // Login
   login: async (email, password) => {
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, {
+    const response = await axios.post(`${BASE_URL}/auth/login`, {
       email,
       password,
     });
@@ -138,19 +138,19 @@ const authService = {
 
   // Register
   register: async (userData) => {
-    const response = await axios.post(`${BASE_URL}/api/auth/register`, userData);
+    const response = await axios.post(`${BASE_URL}/auth/register`, userData);
     return response.data;
   },
 
   // Verify token
   verifyToken: async () => {
-    const response = await axios.get(`${BASE_URL}/api/auth/verify`);
+    const response = await axios.get(`${BASE_URL}/auth/verify`);
     return response.data.user;
   },
 
   // Update profile
   updateProfile: async (userId, userData) => {
-    const response = await axios.put(`${BASE_URL}/api/users/${userId}`, userData);
+    const response = await axios.put(`${BASE_URL}/users/${userId}`, userData);
     return response.data;
   },
 };
