@@ -1,0 +1,81 @@
+name: Deploy to AWS EKS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-south-1.amazonaws.com
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    # 1️⃣ Checkout code
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    # 2️⃣ Configure AWS credentials
+    - name: Configure AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    # 3️⃣ Login to ECR
+    - name: Login to ECR
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # 4️⃣ Build & Push Docker Images
+    - name: Build & Push Images
+      run: |
+        # FRONTEND
+        docker build -t frontend ./frontend
+        docker tag frontend:latest $ECR_REGISTRY/frontend:latest
+        docker push $ECR_REGISTRY/frontend:latest
+
+        # PRODUCT SERVICE
+        docker build -t product-service ./services/product-service
+        docker tag product-service:latest $ECR_REGISTRY/product-service:latest
+        docker push $ECR_REGISTRY/product-service:latest
+
+        # USER SERVICE
+        docker build -t user-service ./services/user-service
+        docker tag user-service:latest $ECR_REGISTRY/user-service:latest
+        docker push $ECR_REGISTRY/user-service:latest
+
+        # SEARCH SERVICE
+        docker build -t search-service ./services/search-service
+        docker tag search-service:latest $ECR_REGISTRY/search-service:latest
+        docker push $ECR_REGISTRY/search-service:latest
+
+    # 5️⃣ Install kubectl
+    - name: Install kubectl
+      run: |
+        curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.27.0/2023-07-05/bin/linux/amd64/kubectl
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    # 6️⃣ Configure kubeconfig
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region $AWS_REGION --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+    # 7️⃣ Deploy to EKS
+    - name: Deploy
+      run: |
+        kubectl apply -f infrastructure/kubernetes/namespaces.yaml
+        kubectl apply -f infrastructure/kubernetes/configmaps.yaml
+        kubectl apply -f infrastructure/kubernetes/secrets.yaml
+
+        kubectl apply -f infrastructure/kubernetes/product-service.yaml
+        kubectl apply -f infrastructure/kubernetes/user-service.yaml
+        kubectl apply -f infrastructure/kubernetes/search-service.yaml
+        kubectl apply -f infrastructure/kubernetes/frontend.yaml
+
+        kubectl apply -f infrastructure/kubernetes/ingress.yaml
