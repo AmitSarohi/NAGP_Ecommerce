@@ -29,3 +29,27 @@ jobs:
           docker build -t product-service ./services/product-service
           docker tag product-service:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/product-service:${{ github.sha }}
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/product-service:${{ github.sha }}
+     
+      - name: Install kubectl
+        run: |
+          curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.27.0/2023-07-05/bin/linux/amd64/kubectl
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region $AWS_REGION --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Deploy to EKS
+        run: |
+          kubectl apply -f infrastructure/kubernetes/product-service.yaml
+
+      - name: Update image (trigger rollout)
+        run: |
+          kubectl set image deployment/product-service \
+            product-service=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/product-service:${{ github.sha }} \
+            -n ecommerce
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/product-service -n ecommerce
