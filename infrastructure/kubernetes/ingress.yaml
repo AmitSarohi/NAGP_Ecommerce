@@ -7,33 +7,14 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
-
 spec:
   ingressClassName: alb
   rules:
     - http:
         paths:
 
-          # 🔥 FRONTEND (keep LAST fallback behavior safe)
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
-
-          # ✅ PRODUCT SERVICE (API)
-          - path: /api/product
-            pathType: Prefix
-            backend:
-              service:
-                name: product-service
-                port:
-                  number: 3002
-
-          # ✅ USER SERVICE (API)
-          - path: /api/user
+          # 🔐 USER SERVICE (auth + users)
+          - path: /api/auth
             pathType: Prefix
             backend:
               service:
@@ -41,7 +22,24 @@ spec:
                 port:
                   number: 3001
 
-          # ✅ SEARCH SERVICE (API)
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 3001
+
+          # 📦 PRODUCT SERVICE
+          - path: /api/products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3002
+
+          # 🔍 SEARCH SERVICE
           - path: /api/search
             pathType: Prefix
             backend:
@@ -49,3 +47,12 @@ spec:
                 name: search-service
                 port:
                   number: 3003
+
+          # 🌐 FRONTEND (MUST BE LAST)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
