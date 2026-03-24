@@ -52,3 +52,4 @@ data:
   REACT_APP_PRODUCT_SERVICE_URL: "http://product-service:3002"
   REACT_APP_SEARCH_SERVICE_URL: "http://search-service:3003"
   REACT_APP_DEPLOYMENT_GUID: "PROD-$(date +%s)"
+  REACT_APP_API_URL: "http://product-service:3002"
