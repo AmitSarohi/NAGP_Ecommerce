@@ -13,6 +13,8 @@ import SearchPage from './pages/SearchPage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
+import AddProductPage from './pages/AddProductPage';
+import AddCategoryPage from './pages/AddCategoryPage';
 
 // Protected Route Component
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -39,6 +41,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/add-product"
+            element={
+              <ProtectedRoute>
+                <AddProductPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/add-category"
+            element={
+              <ProtectedRoute>
+                <AddCategoryPage />
               </ProtectedRoute>
             }
           />

@@ -3,7 +3,7 @@ name: Deploy to Production
 on:
   push:
     branches:
-      - feature/my-changes   # change to main later
+      - feature/new-branch   # change to main later
 
 jobs:
   build_and_deploy:

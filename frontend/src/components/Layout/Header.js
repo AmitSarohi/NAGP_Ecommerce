@@ -29,6 +29,9 @@ import {
   Home as HomeIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
+  Add as AddIcon,
+  Category as CategoryIcon,
+  Inventory as InventoryIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -115,6 +118,14 @@ const Header = () => {
               <ListItem button onClick={handleProfile}>
                 <ListItemIcon><PersonIcon /></ListItemIcon>
                 <ListItemText primary="Profile" />
+              </ListItem>
+              <ListItem button onClick={() => { navigate('/add-product'); setMobileMenuOpen(false); }}>
+                <ListItemIcon><InventoryIcon /></ListItemIcon>
+                <ListItemText primary="Add Product" />
+              </ListItem>
+              <ListItem button onClick={() => { navigate('/add-category'); setMobileMenuOpen(false); }}>
+                <ListItemIcon><CategoryIcon /></ListItemIcon>
+                <ListItemText primary="Add Category" />
               </ListItem>
               <ListItem button onClick={handleLogout}>
                 <ListItemIcon><LogoutIcon /></ListItemIcon>
@@ -204,6 +215,46 @@ const Header = () => {
           )}
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* Add Product & Category Buttons - Show on desktop for authenticated users */}
+            {!isMobile && isAuthenticated && (
+              <Box sx={{ display: 'flex', gap: 1, mr: 2 }}>
+                <Button
+                  startIcon={<InventoryIcon />}
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/add-product')}
+                  sx={{ 
+                    textTransform: 'none',
+                    borderColor: 'rgba(255,255,255,0.5)',
+                    color: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      backgroundColor: 'rgba(255,255,255,0.1)'
+                    }
+                  }}
+                >
+                  Add Product
+                </Button>
+                <Button
+                  startIcon={<CategoryIcon />}
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/add-category')}
+                  sx={{ 
+                    textTransform: 'none',
+                    borderColor: 'rgba(255,255,255,0.5)',
+                    color: 'white',
+                    '&:hover': {
+                      borderColor: 'white',
+                      backgroundColor: 'rgba(255,255,255,0.1)'
+                    }
+                  }}
+                >
+                  Add Category
+                </Button>
+              </Box>
+            )}
+
             {/* Mobile Menu */}
             {isMobile && (
               <IconButton color="inherit" onClick={toggleMobileMenu}>
