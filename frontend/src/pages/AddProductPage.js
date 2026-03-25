@@ -54,7 +54,7 @@ const AddProductPage = () => {
     try {
       setLoading(true);
       const data = await categoryAPI.getCategories();
-      setCategories(data);
+      setCategories(data.data || []);
     } catch (error) {
       toast.error('Failed to load categories');
       console.error('Error loading categories:', error);
