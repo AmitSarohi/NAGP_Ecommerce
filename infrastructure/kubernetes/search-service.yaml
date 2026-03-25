@@ -3,34 +3,42 @@ kind: Deployment
 metadata:
   name: search-service
   namespace: ecommerce
-  labels:
-    app: search-service
-    version: v1
 spec:
-  replicas: 1
+  replicas: 3
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+
   selector:
     matchLabels:
       app: search-service
+
   template:
     metadata:
       labels:
         app: search-service
-        version: v1
+
     spec:
       imagePullSecrets:
         - name: ecr-secret
+
       containers:
       - name: search-service
         image: 160823835826.dkr.ecr.eu-north-1.amazonaws.com/search-service:latest
         imagePullPolicy: Always
+
         ports:
         - containerPort: 3003
-          name: http
+
         envFrom:
         - configMapRef:
             name: search-service-config
         - secretRef:
             name: search-service-secrets
+
         resources:
           requests:
             memory: "128Mi"
@@ -38,84 +46,36 @@ spec:
           limits:
             memory: "256Mi"
             cpu: "300m"
+
         livenessProbe:
           httpGet:
             path: /api/health/live
             port: 3003
           initialDelaySeconds: 30
           periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
+
         readinessProbe:
           httpGet:
             path: /api/health/ready
             port: 3003
-          initialDelaySeconds: 5
+          initialDelaySeconds: 15
           periodSeconds: 5
-          timeoutSeconds: 3
-          failureThreshold: 3
+
         securityContext:
           runAsNonRoot: true
           runAsUser: 1001
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
-      restartPolicy: Always
+          readOnlyRootFilesystem: false   # ✅ FIXED
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: search-service
   namespace: ecommerce
-  labels:
-    app: search-service
 spec:
   selector:
     app: search-service
   ports:
-  - name: http
-    port: 3003
-    targetPort: 3003
-    protocol: TCP
-  type: ClusterIP
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: search-service-hpa
-  namespace: ecommerce
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: search-service
-  minReplicas: 3
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
-  behavior:
-    scaleDown:
-      stabilizationWindowSeconds: 300
-      policies:
-      - type: Percent
-        value: 10
-        periodSeconds: 60
-    scaleUp:
-      stabilizationWindowSeconds: 60
-      policies:
-      - type: Percent
-        value: 50
-        periodSeconds: 60
+    - port: 3003
+      targetPort: 3003
