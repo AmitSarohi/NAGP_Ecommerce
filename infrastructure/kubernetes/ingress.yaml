@@ -7,13 +7,30 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/group.order: "1"   # 👈 ADD THIS
 spec:
   ingressClassName: alb
   rules:
     - http:
         paths:
 
-          # 🔐 USER SERVICE
+          # ✅ MOVE THIS TO TOP
+          - path: /api/categories
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3002
+
+          - path: /api/products
+            pathType: Prefix
+            backend:
+              service:
+                name: product-service
+                port:
+                  number: 3002
+
           - path: /api/auth
             pathType: Prefix
             backend:
@@ -30,25 +47,6 @@ spec:
                 port:
                   number: 3001
 
-          # 📦 PRODUCT SERVICE
-          - path: /api/products
-            pathType: Prefix
-            backend:
-              service:
-                name: product-service
-                port:
-                  number: 3002
-
-          # ✅ 🟢 CATEGORY SERVICE (THIS WAS MISSING)
-          - path: /api/categories
-            pathType: Prefix
-            backend:
-              service:
-                name: product-service   # 👈 assuming categories are inside product-service
-                port:
-                  number: 3002
-
-          # 🔍 SEARCH SERVICE
           - path: /api/search
             pathType: Prefix
             backend:
@@ -57,7 +55,6 @@ spec:
                 port:
                   number: 3003
 
-          # 🌐 FRONTEND (MUST BE LAST)
           - path: /
             pathType: Prefix
             backend:
