@@ -6,12 +6,13 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "3001"
-  AWS_REGION: "us-east-1"
-  DYNAMODB_REGION: "us-east-1"
+  AWS_REGION: "eu-north-1"
+  DYNAMODB_REGION: "eu-north-1"
   USER_TABLE: "users"
   JWT_EXPIRES_IN: "24h"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "100"
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -21,13 +22,14 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "3002"
-  AWS_REGION: "us-east-1"
-  DYNAMODB_REGION: "us-east-1"
+  AWS_REGION: "eu-north-1"
+  DYNAMODB_REGION: "eu-north-1"
   PRODUCT_TABLE: "products"
   CATEGORY_TABLE: "categories"
-  AWS_S3_REGION: "us-east-1"
+  AWS_S3_REGION: "eu-north-1"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "200"
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -38,9 +40,10 @@ data:
   NODE_ENV: "production"
   PORT: "3003"
   OPENSEARCH_INDEX: "products"
-  PRODUCT_SERVICE_URL: "http://product-service:3002"
+  PRODUCT_SERVICE_URL: "http://product-service:3002"  # ✅ correct (internal)
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "300"
+
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -48,8 +51,7 @@ metadata:
   name: frontend-config
   namespace: ecommerce
 data:
-  REACT_APP_USER_SERVICE_URL: "/api/user"
-  REACT_APP_PRODUCT_SERVICE_URL: "http://product-service:3002"
-  REACT_APP_SEARCH_SERVICE_URL: "http://search-service:3003"
-  REACT_APP_DEPLOYMENT_GUID: "PROD-$(date +%s)"
-  REACT_APP_API_URL: "http://product-service:3002"
+  REACT_APP_PRODUCT_SERVICE_URL: "/api/products"
+  REACT_APP_SEARCH_SERVICE_URL: "/api/search"
+  REACT_APP_API_URL: "/api"
+  REACT_APP_DEPLOYMENT_GUID: "PROD"

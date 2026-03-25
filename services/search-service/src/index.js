@@ -13,10 +13,15 @@ const { initializeOpenSearch } = require('./config/opensearch');
 const app = express();
 const PORT = process.env.PORT || 3003;
 
+let server; // ✅ FIXED (global reference)
+
+// 🚀 STARTUP LOG
+console.log("🚀 Starting Search Service...");
+
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // limit each IP to 300 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 300,
   message: 'Too many requests from this IP, please try again later.'
 });
 
@@ -33,7 +38,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/index', indexRoutes);
 
-// Swagger documentation
+// Swagger
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
@@ -47,8 +52,8 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: `http://localhost:${PORT}/api`,
-        description: 'Development server',
+        url: '/api', // ✅ FIXED (no localhost)
+        description: 'Production server',
       },
     ],
   },
@@ -58,9 +63,9 @@ const swaggerOptions = {
 const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// Error handling middleware
+// Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('🔥 ERROR:', err.stack);
   res.status(err.status || 500).json({
     error: {
       message: err.message || 'Internal Server Error',
@@ -78,26 +83,33 @@ app.use('*', (req, res) => {
   });
 });
 
-// Graceful shutdown
+// Graceful shutdown (FIXED)
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-  });
+  console.log('SIGTERM received, shutting down...');
+  if (server) {
+    server.close(() => {
+      console.log('Process terminated');
+    });
+  }
 });
 
+// 🚀 START SERVER (SAFE)
 const startServer = async () => {
   try {
-    await initializeOpenSearch();
-    
-    const server = app.listen(PORT, () => {
-      console.log(`Search Service running on port ${PORT}`);
-      console.log(`API Documentation: http://localhost:${PORT}/api/docs`);
+    // ✅ NON-BLOCKING INIT
+    try {
+      await initializeOpenSearch();
+    } catch (err) {
+      console.error("⚠️ OpenSearch init failed, continuing...");
+    }
+
+    server = app.listen(PORT, () => {
+      console.log(`✅ Search Service running on port ${PORT}`);
+      console.log(`📄 Docs: /api/docs`);
     });
 
-    return server;
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };

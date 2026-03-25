@@ -3,6 +3,7 @@ const { Client } = require('@opensearch-project/opensearch');
 const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || 'http://localhost:9200';
 const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'products';
 
+// 🔥 CLIENT
 const client = new Client({
   node: OPENSEARCH_ENDPOINT,
   auth: {
@@ -14,6 +15,29 @@ const client = new Client({
   },
 });
 
+
+// 🚀 INITIALIZE OPENSEARCH (FIXED)
+async function initializeOpenSearch(retries = 5, delay = 5000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await client.ping();
+      console.log("✅ OpenSearch connected");
+      return;
+    } catch (err) {
+      console.error(`⚠️ OpenSearch not ready (attempt ${i + 1}/${retries})`);
+
+      if (i === retries - 1) {
+        console.error("❌ OpenSearch failed after retries. Continuing without blocking...");
+        return; // 🔥 DO NOT CRASH APP
+      }
+
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+}
+
+
+// 🔍 SEARCH OPERATIONS
 const searchOperations = {
 
   async searchProducts(query, filters = {}, sort = {}, page = 1, limit = 20) {
@@ -23,12 +47,14 @@ const searchOperations = {
         sort: this.buildSortQuery(sort),
         from: (page - 1) * limit,
         size: limit,
+
         highlight: {
           fields: {
             name: {},
             description: {},
           },
         },
+
         aggs: {
           categories: {
             terms: {
@@ -73,9 +99,19 @@ const searchOperations = {
 
     } catch (error) {
       console.error('🔥 OPENSEARCH ERROR:', JSON.stringify(error, null, 2));
-      throw error;
+
+      // 🔥 DO NOT CRASH APP — RETURN SAFE RESPONSE
+      return {
+        products: [],
+        total: 0,
+        aggregations: {},
+        page,
+        limit,
+        totalPages: 0,
+      };
     }
   },
+
 
   buildSearchQuery(query, filters) {
     const must = [];
@@ -125,6 +161,7 @@ const searchOperations = {
     };
   },
 
+
   buildSortQuery(sort) {
     switch (sort.sortBy) {
       case 'price_asc':
@@ -143,8 +180,11 @@ const searchOperations = {
   },
 };
 
+
+// 🚀 EXPORTS (FIXED)
 module.exports = {
   searchOperations,
   client,
   OPENSEARCH_INDEX,
+  initializeOpenSearch, // ✅ IMPORTANT FIX
 };
