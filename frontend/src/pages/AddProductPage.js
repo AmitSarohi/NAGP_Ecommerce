@@ -12,12 +12,7 @@ import {
   Select,
   MenuItem,
   IconButton,
-  Alert,
   CircularProgress,
-  Card,
-  CardContent,
-  Divider,
-  Chip,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -32,6 +27,7 @@ import { productAPI, categoryAPI } from '../services/api';
 
 const AddProductPage = () => {
   const navigate = useNavigate();
+
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +41,7 @@ const AddProductPage = () => {
     reset,
   } = useForm();
 
-  // Load categories on component mount
+  // 🔥 LOAD CATEGORIES (FIXED)
   useEffect(() => {
     loadCategories();
   }, []);
@@ -53,8 +49,18 @@ const AddProductPage = () => {
   const loadCategories = async () => {
     try {
       setLoading(true);
+
       const data = await categoryAPI.getCategories();
-      setCategories(data.data || []);
+
+      console.log("🔥 Categories API response:", data);
+
+      // ✅ FIXED RESPONSE HANDLING
+      const categoriesArray = Array.isArray(data)
+        ? data
+        : data.data || [];
+
+      setCategories(categoriesArray);
+
     } catch (error) {
       toast.error('Failed to load categories');
       console.error('Error loading categories:', error);
@@ -63,28 +69,23 @@ const AddProductPage = () => {
     }
   };
 
-  const addImageField = () => {
-    setImages([...images, '']);
-  };
-
+  // Images
+  const addImageField = () => setImages([...images, '']);
   const removeImageField = (index) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages);
+    setImages(images.filter((_, i) => i !== index));
   };
-
   const handleImageChange = (index, value) => {
     const newImages = [...images];
     newImages[index] = value;
     setImages(newImages);
   };
 
-  const addAttributeField = () => {
+  // Attributes
+  const addAttributeField = () =>
     setAttributes([...attributes, { key: '', value: '' }]);
-  };
 
   const removeAttributeField = (index) => {
-    const newAttributes = attributes.filter((_, i) => i !== index);
-    setAttributes(newAttributes);
+    setAttributes(attributes.filter((_, i) => i !== index));
   };
 
   const handleAttributeChange = (index, field, value) => {
@@ -93,14 +94,15 @@ const AddProductPage = () => {
     setAttributes(newAttributes);
   };
 
+  // 🔥 SUBMIT
   const onSubmit = async (data) => {
     try {
       setSubmitting(true);
 
-      // Filter out empty images and attributes
       const validImages = images.filter(img => img.trim() !== '');
+
       const validAttributes = attributes
-        .filter(attr => attr.key.trim() !== '' && attr.value.trim() !== '')
+        .filter(attr => attr.key && attr.value)
         .reduce((acc, attr) => {
           acc[attr.key] = attr.value;
           return acc;
@@ -115,18 +117,17 @@ const AddProductPage = () => {
       };
 
       const result = await productAPI.createProduct(productData);
+
       toast.success('Product created successfully!');
-      
-      // Reset form
+
       reset();
       setImages(['']);
       setAttributes([{ key: '', value: '' }]);
-      
-      // Navigate to product details or products list
+
       setTimeout(() => {
         navigate(`/product/${result.productId}`);
-      }, 1500);
-      
+      }, 1200);
+
     } catch (error) {
       toast.error(error.response?.data?.error?.message || 'Failed to create product');
       console.error('Error creating product:', error);
@@ -135,6 +136,7 @@ const AddProductPage = () => {
     }
   };
 
+  // 🔄 LOADING UI
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
@@ -145,30 +147,21 @@ const AddProductPage = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{ mb: 2 }}
-        >
-          Back
-        </Button>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Add New Product
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Fill in the details below to add a new product to your catalog.
-        </Typography>
-      </Box>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
+        Back
+      </Button>
 
-      <Paper elevation={3} sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Add New Product
+      </Typography>
+
+      <Paper sx={{ p: 3 }}>
         <form onSubmit={handleSubmit(onSubmit)}>
           <Grid container spacing={3}>
-            {/* Basic Information */}
+
+            {/* BASIC */}
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Basic Information
-              </Typography>
+              <Typography variant="h6">Basic Info</Typography>
             </Grid>
 
             <Grid item xs={12} md={6}>
@@ -176,16 +169,9 @@ const AddProductPage = () => {
                 name="sku"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'SKU is required' }}
+                rules={{ required: 'SKU required' }}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="SKU"
-                    fullWidth
-                    error={!!errors.sku}
-                    helperText={errors.sku?.message}
-                    placeholder="e.g., LAPTOP-001"
-                  />
+                  <TextField {...field} label="SKU" fullWidth error={!!errors.sku} />
                 )}
               />
             </Grid>
@@ -195,16 +181,9 @@ const AddProductPage = () => {
                 name="name"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'Product name is required' }}
+                rules={{ required: 'Name required' }}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Product Name"
-                    fullWidth
-                    error={!!errors.name}
-                    helperText={errors.name?.message}
-                    placeholder="e.g., Premium Laptop Pro"
-                  />
+                  <TextField {...field} label="Product Name" fullWidth error={!!errors.name} />
                 )}
               />
             </Grid>
@@ -214,122 +193,86 @@ const AddProductPage = () => {
                 name="description"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'Description is required' }}
+                rules={{ required: 'Description required' }}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Description"
-                    fullWidth
-                    multiline
-                    rows={4}
-                    error={!!errors.description}
-                    helperText={errors.description?.message}
-                    placeholder="Describe your product in detail..."
-                  />
+                  <TextField {...field} label="Description" fullWidth multiline rows={3} />
                 )}
               />
             </Grid>
 
-            {/* Pricing and Inventory */}
+            {/* PRICING */}
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Pricing & Inventory
-              </Typography>
+              <Typography variant="h6">Pricing & Inventory</Typography>
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={4}>
               <Controller
                 name="price"
                 control={control}
                 defaultValue=""
-                rules={{ 
-                  required: 'Price is required',
-                  pattern: {
-                    value: /^\d+(\.\d{1,2})?$/,
-                    message: 'Please enter a valid price'
-                  }
-                }}
+                rules={{ required: 'Price required' }}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Price ($)"
-                    fullWidth
-                    type="number"
-                    error={!!errors.price}
-                    helperText={errors.price?.message}
-                    placeholder="0.00"
-                  />
+                  <TextField {...field} label="Price" type="number" fullWidth />
                 )}
               />
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            <Grid item xs={4}>
               <Controller
                 name="inventoryCount"
                 control={control}
                 defaultValue="0"
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    label="Inventory Count"
-                    fullWidth
-                    type="number"
-                    error={!!errors.inventoryCount}
-                    helperText={errors.inventoryCount?.message}
-                    placeholder="0"
-                  />
+                  <TextField {...field} label="Inventory" type="number" fullWidth />
                 )}
               />
             </Grid>
 
-            <Grid item xs={12} md={4}>
+            {/* 🔥 CATEGORY FIXED */}
+            <Grid item xs={4}>
               <Controller
                 name="categoryId"
                 control={control}
                 defaultValue=""
-                rules={{ required: 'Category is required' }}
+                rules={{ required: 'Category required' }}
                 render={({ field }) => (
-                  <FormControl fullWidth error={!!errors.categoryId}>
+                  <FormControl fullWidth>
                     <InputLabel>Category</InputLabel>
-                    <Select {...field} label="Category">
-                      {categories.map((category) => (
-                        <MenuItem key={category.categoryId} value={category.categoryId}>
-                          {category.name}
-                        </MenuItem>
-                      ))}
+                    <Select {...field} label="Category" value={field.value || ''}>
+                      {categories.length === 0 ? (
+                        <MenuItem disabled>No categories found</MenuItem>
+                      ) : (
+                        categories.map((category) => (
+                          <MenuItem
+                            key={category.categoryId}
+                            value={category.categoryId}
+                          >
+                            {category.name}
+                          </MenuItem>
+                        ))
+                      )}
                     </Select>
-                    {errors.categoryId && (
-                      <Typography variant="caption" color="error">
-                        {errors.categoryId.message}
-                      </Typography>
-                    )}
                   </FormControl>
                 )}
               />
             </Grid>
 
-            {/* Images */}
+            {/* IMAGES */}
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Product Images
-              </Typography>
+              <Typography variant="h6">Images</Typography>
             </Grid>
 
-            {images.map((image, index) => (
-              <Grid item xs={12} key={index}>
-                <Box display="flex" gap={1} alignItems="center">
+            {images.map((img, i) => (
+              <Grid item xs={12} key={i}>
+                <Box display="flex" gap={1}>
                   <TextField
-                    value={image}
-                    onChange={(e) => handleImageChange(index, e.target.value)}
-                    label={`Image URL ${index + 1}`}
+                    value={img}
+                    onChange={(e) => handleImageChange(i, e.target.value)}
                     fullWidth
-                    placeholder="https://example.com/product-image.jpg"
+                    label={`Image ${i + 1}`}
                   />
                   {images.length > 1 && (
-                    <IconButton
-                      color="error"
-                      onClick={() => removeImageField(index)}
-                    >
+                    <IconButton onClick={() => removeImageField(i)}>
                       <DeleteIcon />
                     </IconButton>
                   )}
@@ -338,43 +281,31 @@ const AddProductPage = () => {
             ))}
 
             <Grid item xs={12}>
-              <Button
-                startIcon={<AddIcon />}
-                onClick={addImageField}
-                variant="outlined"
-                size="small"
-              >
-                Add Another Image
+              <Button onClick={addImageField} startIcon={<AddIcon />}>
+                Add Image
               </Button>
             </Grid>
 
-            {/* Custom Attributes */}
+            {/* ATTRIBUTES */}
             <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Custom Attributes
-              </Typography>
+              <Typography variant="h6">Attributes</Typography>
             </Grid>
 
-            {attributes.map((attr, index) => (
-              <Grid item xs={12} key={index}>
-                <Box display="flex" gap={1} alignItems="center">
+            {attributes.map((attr, i) => (
+              <Grid item xs={12} key={i}>
+                <Box display="flex" gap={1}>
                   <TextField
                     value={attr.key}
-                    onChange={(e) => handleAttributeChange(index, 'key', e.target.value)}
-                    label="Attribute Name"
-                    placeholder="e.g., Brand, Color, Size"
+                    onChange={(e) => handleAttributeChange(i, 'key', e.target.value)}
+                    label="Key"
                   />
                   <TextField
                     value={attr.value}
-                    onChange={(e) => handleAttributeChange(index, 'value', e.target.value)}
-                    label="Attribute Value"
-                    placeholder="e.g., Nike, Red, Large"
+                    onChange={(e) => handleAttributeChange(i, 'value', e.target.value)}
+                    label="Value"
                   />
                   {attributes.length > 1 && (
-                    <IconButton
-                      color="error"
-                      onClick={() => removeAttributeField(index)}
-                    >
+                    <IconButton onClick={() => removeAttributeField(i)}>
                       <DeleteIcon />
                     </IconButton>
                   )}
@@ -383,37 +314,25 @@ const AddProductPage = () => {
             ))}
 
             <Grid item xs={12}>
-              <Button
-                startIcon={<AddIcon />}
-                onClick={addAttributeField}
-                variant="outlined"
-                size="small"
-              >
-                Add Another Attribute
+              <Button onClick={addAttributeField} startIcon={<AddIcon />}>
+                Add Attribute
               </Button>
             </Grid>
 
-            {/* Submit Button */}
+            {/* SUBMIT */}
             <Grid item xs={12}>
-              <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 3 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate(-1)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
+              <Box textAlign="right">
                 <Button
                   type="submit"
                   variant="contained"
-                  startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+                  startIcon={<SaveIcon />}
                   disabled={submitting}
-                  size="large"
                 >
                   {submitting ? 'Creating...' : 'Create Product'}
                 </Button>
               </Box>
             </Grid>
+
           </Grid>
         </form>
       </Paper>
