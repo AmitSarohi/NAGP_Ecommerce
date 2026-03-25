@@ -1,9 +1,9 @@
 import axios from 'axios';
 
-// API base URL - adjust based on your environment
+// API base URL
 const API_BASE_URL = '/api';
 
-// Create axios instance
+// Axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -12,28 +12,20 @@ const api = axios.create({
   },
 });
 
-// Request interceptor for adding auth token if available
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Request interceptor (Auth)
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('authToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// Response interceptor for error handling
+// Response interceptor (Auth error)
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
       localStorage.removeItem('authToken');
       window.location.href = '/login';
     }
@@ -41,86 +33,80 @@ api.interceptors.response.use(
   }
 );
 
-// Product API functions
+
+// ======================
+// PRODUCT API
+// ======================
 export const productAPI = {
-  // Get all products
   getProducts: async (params = {}) => {
-    const response = await api.get('/products', { params });
-    return response.data;
+    const res = await api.get('/products', { params });
+    return res.data;
   },
 
-  // Get product by ID
-  getProductById: async (productId) => {
-    const response = await api.get(`/products/${productId}`);
-    return response.data;
+  getProductById: async (id) => {
+    const res = await api.get(`/products/${id}`);
+    return res.data;
   },
 
-  // Create new product
-  createProduct: async (productData) => {
-    const response = await api.post('/products', productData);
-    return response.data;
+  createProduct: async (data) => {
+    const res = await api.post('/products', data);
+    return res.data;
   },
 
-  // Update product
-  updateProduct: async (productId, productData) => {
-    const response = await api.put(`/products/${productId}`, productData);
-    return response.data;
+  updateProduct: async (id, data) => {
+    const res = await api.put(`/products/${id}`, data);
+    return res.data;
   },
 
-  // Delete product
-  deleteProduct: async (productId) => {
-    const response = await api.delete(`/products/${productId}`);
-    return response.data;
+  deleteProduct: async (id) => {
+    const res = await api.delete(`/products/${id}`);
+    return res.data;
   },
 
-  // Search products
   searchProducts: async (searchTerm, params = {}) => {
-    const response = await api.get('/products', {
-      params: { search: searchTerm, ...params }
+    const res = await api.get('/products', {
+      params: { search: searchTerm, ...params },
     });
-    return response.data;
+    return res.data;
   },
 
-  // Get products by category
   getProductsByCategory: async (categoryId, params = {}) => {
-    const response = await api.get('/products', {
-      params: { categoryId, ...params }
+    const res = await api.get('/products', {
+      params: { categoryId, ...params },
     });
-    return response.data;
-  }
+    return res.data;
+  },
 };
 
-// Category API functions
+
+// ======================
+// CATEGORY API (FIXED)
+// ======================
 export const categoryAPI = {
-  // Get all categories
   getCategories: async () => {
-    const response = await api.get('/categories');
-    return response.data;
+    const res = await api.get('/categories');
+    return res.data; // ✅ returns ARRAY
   },
 
-  // Get category by ID
-  getCategoryById: async (categoryId) => {
-    const response = await api.get(`/categories/${categoryId}`);
-    return response.data;
+  getCategoryById: async (id) => {
+    const res = await api.get(`/categories/${id}`);
+    return res.data;
   },
 
-  // Create new category
-  createCategory: async (categoryData) => {
-    const response = await api.post('/categories', categoryData);
-    return response.data;
+  createCategory: async (data) => {
+    const res = await api.post('/categories', data);
+    return res.data;
   },
 
-  // Update category
-  updateCategory: async (categoryId, categoryData) => {
-    const response = await api.put(`/categories/${categoryId}`, categoryData);
-    return response.data;
+  updateCategory: async (id, data) => {
+    const res = await api.put(`/categories/${id}`, data);
+    return res.data;
   },
 
-  // Delete category
-  deleteCategory: async (categoryId) => {
-    const response = await api.delete(`/categories/${categoryId}`);
-    return response.data;
-  }
+  deleteCategory: async (id) => {
+    const res = await api.delete(`/categories/${id}`);
+    return res.data;
+  },
 };
 
 export default api;

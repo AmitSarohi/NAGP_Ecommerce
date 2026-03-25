@@ -1,28 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Container,
-  Typography,
-  Paper,
-  TextField,
-  Button,
-  Grid,
-  CircularProgress,
-  Alert,
-  Card,
-  CardContent,
-  List,
-  ListItem,
-  ListItemText,
-  Chip,
-  IconButton,
+  Box, Container, Typography, Paper, TextField,
+  Button, Grid, CircularProgress, Alert,
+  List, ListItem, ListItemText, Chip, IconButton
 } from '@mui/material';
 import {
   Save as SaveIcon,
   ArrowBack as ArrowBackIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon,
-  Add as AddIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
@@ -36,16 +22,9 @@ const AddCategoryPage = () => {
   const [loading, setLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-  } = useForm();
+  const { control, handleSubmit, formState: { errors }, reset, setValue } = useForm();
 
-  // Load categories on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     loadCategories();
   }, []);
 
@@ -53,264 +32,129 @@ const AddCategoryPage = () => {
     try {
       setLoading(true);
       const data = await categoryAPI.getCategories();
-      setCategories(data.data || []);
+
+      // ✅ FIX HERE
+      setCategories(Array.isArray(data) ? data : []);
+
     } catch (error) {
       toast.error('Failed to load categories');
-      console.error('Error loading categories:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (formData) => {
     try {
       setSubmitting(true);
 
       if (editingCategory) {
-        // Update existing category
-        await categoryAPI.updateCategory(editingCategory.categoryId, data);
-        toast.success('Category updated successfully!');
-        setEditingCategory(null);
+        await categoryAPI.updateCategory(editingCategory.categoryId, formData);
+        toast.success('Category updated!');
       } else {
-        // Create new category
-        await categoryAPI.createCategory(data);
-        toast.success('Category created successfully!');
+        await categoryAPI.createCategory(formData);
+        toast.success('Category created!');
       }
 
-      // Reset form
       reset();
-      
-      // Reload categories
+      setEditingCategory(null);
       await loadCategories();
-      
+
     } catch (error) {
-      toast.error(error.response?.data?.error?.message || 'Failed to save category');
-      console.error('Error saving category:', error);
+      toast.error('Failed to save category');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleEditCategory = (category) => {
-    setEditingCategory(category);
-    setValue('name', category.name);
-    setValue('description', category.description || '');
+  const handleEdit = (cat) => {
+    setEditingCategory(cat);
+    setValue('name', cat.name);
+    setValue('description', cat.description || '');
   };
 
-  const handleDeleteCategory = async (categoryId) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) {
-      return;
-    }
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this category?')) return;
 
     try {
-      await categoryAPI.deleteCategory(categoryId);
-      toast.success('Category deleted successfully!');
-      await loadCategories();
-    } catch (error) {
-      toast.error(error.response?.data?.error?.message || 'Failed to delete category');
-      console.error('Error deleting category:', error);
+      await categoryAPI.deleteCategory(id);
+      toast.success('Deleted!');
+      loadCategories();
+    } catch {
+      toast.error('Delete failed');
     }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingCategory(null);
-    reset();
   };
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    );
+    return <Box textAlign="center" mt={5}><CircularProgress /></Box>;
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Box mb={3}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{ mb: 2 }}
-        >
-          Back
-        </Button>
-        <Typography variant="h4" component="h1" gutterBottom>
-          {editingCategory ? 'Edit Category' : 'Add New Category'}
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {editingCategory 
-            ? 'Update the category details below.'
-            : 'Create a new category to organize your products.'
-          }
-        </Typography>
-      </Box>
+    <Container maxWidth="md">
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
+        Back
+      </Button>
 
-      <Grid container spacing={4}>
-        {/* Add/Edit Category Form */}
+      <Typography variant="h4" mt={2}>
+        {editingCategory ? 'Edit Category' : 'Add Category'}
+      </Typography>
+
+      <Grid container spacing={4} mt={1}>
+        {/* FORM */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper sx={{ p: 3 }}>
             <form onSubmit={handleSubmit(onSubmit)}>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Controller
-                    name="name"
-                    control={control}
-                    defaultValue=""
-                    rules={{ 
-                      required: 'Category name is required',
-                      minLength: {
-                        value: 1,
-                        message: 'Category name must be at least 1 character'
-                      },
-                      maxLength: {
-                        value: 100,
-                        message: 'Category name must be less than 100 characters'
-                      }
-                    }}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        label="Category Name"
-                        fullWidth
-                        error={!!errors.name}
-                        helperText={errors.name?.message}
-                        placeholder="e.g., Electronics"
-                      />
-                    )}
-                  />
-                </Grid>
+              <Controller
+                name="name"
+                control={control}
+                rules={{ required: 'Name required' }}
+                render={({ field }) => (
+                  <TextField {...field} label="Name" fullWidth error={!!errors.name} />
+                )}
+              />
 
-                <Grid item xs={12}>
-                  <Controller
-                    name="description"
-                    control={control}
-                    defaultValue=""
-                    rules={{
-                      maxLength: {
-                        value: 500,
-                        message: 'Description must be less than 500 characters'
-                      }
-                    }}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        label="Description"
-                        fullWidth
-                        multiline
-                        rows={4}
-                        error={!!errors.description}
-                        helperText={errors.description?.message}
-                        placeholder="Describe this category..."
-                      />
-                    )}
-                  />
-                </Grid>
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
+                  <TextField {...field} label="Description" fullWidth multiline rows={3} sx={{ mt: 2 }} />
+                )}
+              />
 
-                <Grid item xs={12}>
-                  <Box display="flex" gap={2} justifyContent="flex-end">
-                    {editingCategory && (
-                      <Button
-                        variant="outlined"
-                        onClick={handleCancelEdit}
-                        disabled={submitting}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-                      disabled={submitting}
-                      size="large"
-                    >
-                      {submitting 
-                        ? (editingCategory ? 'Updating...' : 'Creating...') 
-                        : (editingCategory ? 'Update Category' : 'Create Category')
-                      }
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<SaveIcon />}
+                fullWidth
+                sx={{ mt: 2 }}
+              >
+                {editingCategory ? 'Update' : 'Create'}
+              </Button>
             </form>
           </Paper>
         </Grid>
 
-        {/* Existing Categories List */}
+        {/* LIST */}
         <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Existing Categories
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              {categories.length} categories total
-            </Typography>
+          <Paper sx={{ p: 3 }}>
+            <Typography>{categories.length} Categories</Typography>
 
             {categories.length === 0 ? (
-              <Alert severity="info">
-                No categories found. Create your first category!
-              </Alert>
+              <Alert>No categories found</Alert>
             ) : (
-              <List sx={{ maxHeight: 500, overflow: 'auto' }}>
-                {categories.map((category) => (
-                  <ListItem
-                    key={category.categoryId}
-                    sx={{
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      mb: 1,
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                      }
-                    }}
-                  >
+              <List>
+                {categories.map((cat) => (
+                  <ListItem key={cat.categoryId}>
                     <ListItemText
-                      primary={
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography variant="subtitle1" fontWeight={500}>
-                            {category.name}
-                          </Typography>
-                          {category.isActive ? (
-                            <Chip label="Active" size="small" color="success" />
-                          ) : (
-                            <Chip label="Inactive" size="small" color="default" />
-                          )}
-                        </Box>
-                      }
-                      secondary={
-                        <Box>
-                          {category.description && (
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                              {category.description}
-                            </Typography>
-                          )}
-                          <Typography variant="caption" color="text.secondary">
-                            ID: {category.categoryId}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
-                            Created: {new Date(category.createdAt).toLocaleDateString()}
-                          </Typography>
-                        </Box>
-                      }
+                      primary={cat.name}
+                      secondary={cat.description}
                     />
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditCategory(category)}
-                        color="primary"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteCategory(category.categoryId)}
-                        color="error"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Box>
+                    <Chip label={cat.isActive ? 'Active' : 'Inactive'} />
+                    <IconButton onClick={() => handleEdit(cat)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton onClick={() => handleDelete(cat.categoryId)}>
+                      <DeleteIcon />
+                    </IconButton>
                   </ListItem>
                 ))}
               </List>
