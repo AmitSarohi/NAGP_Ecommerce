@@ -1,9 +1,8 @@
 const { Client } = require('@opensearch-project/opensearch');
 
-const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || 'http://localhost:9200';
+const OPENSEARCH_ENDPOINT = process.env.OPENSEARCH_ENDPOINT || 'http://opensearch:9200';
 const OPENSEARCH_INDEX = process.env.OPENSEARCH_INDEX || 'products';
 
-// 🔥 CLIENT
 const client = new Client({
   node: OPENSEARCH_ENDPOINT,
   auth: {
@@ -16,7 +15,7 @@ const client = new Client({
 });
 
 
-// 🚀 INITIALIZE OPENSEARCH (FIXED)
+// 🚀 INIT
 async function initializeOpenSearch(retries = 5, delay = 5000) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -24,21 +23,72 @@ async function initializeOpenSearch(retries = 5, delay = 5000) {
       console.log("✅ OpenSearch connected");
       return;
     } catch (err) {
-      console.error(`⚠️ OpenSearch not ready (attempt ${i + 1}/${retries})`);
-
-      if (i === retries - 1) {
-        console.error("❌ OpenSearch failed after retries. Continuing without blocking...");
-        return; // 🔥 DO NOT CRASH APP
-      }
-
+      console.error(`⚠️ OpenSearch not ready (${i + 1}/${retries})`);
       await new Promise(res => setTimeout(res, delay));
     }
   }
 }
 
 
+// 🚀 INDEX PRODUCT
+async function indexProduct(product) {
+  try {
+    await client.index({
+      index: OPENSEARCH_INDEX,
+      id: product.productId,
+      body: product,
+      refresh: true, // 🔥 IMPORTANT
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("❌ indexProduct error:", error);
+    throw error;
+  }
+}
+
+
+// 🚀 UPDATE PRODUCT
+async function updateProduct(productId, product) {
+  try {
+    await client.index({
+      index: OPENSEARCH_INDEX,
+      id: productId,
+      body: product,
+      refresh: true,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("❌ updateProduct error:", error);
+    throw error;
+  }
+}
+
+
+// 🚀 DELETE PRODUCT
+async function deleteProduct(productId) {
+  try {
+    await client.delete({
+      index: OPENSEARCH_INDEX,
+      id: productId,
+      refresh: true,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("❌ deleteProduct error:", error);
+    throw error;
+  }
+}
+
+
 // 🔍 SEARCH OPERATIONS
 const searchOperations = {
+
+  indexProduct,
+  updateProduct,
+  deleteProduct,
 
   async searchProducts(query, filters = {}, sort = {}, page = 1, limit = 20) {
     try {
@@ -48,29 +98,11 @@ const searchOperations = {
         from: (page - 1) * limit,
         size: limit,
 
-        highlight: {
-          fields: {
-            name: {},
-            description: {},
-          },
-        },
-
         aggs: {
           categories: {
             terms: {
-              field: 'categoryName', // ✅ FIXED
+              field: 'categoryName.keyword', // 🔥 FIXED
               size: 10,
-            },
-          },
-          price_ranges: {
-            range: {
-              field: 'price',
-              ranges: [
-                { key: 'under_50', to: 50 },
-                { key: '50_to_100', from: 50, to: 100 },
-                { key: '100_to_200', from: 100, to: 200 },
-                { key: 'over_200', from: 200 },
-              ],
             },
           },
         },
@@ -88,23 +120,18 @@ const searchOperations = {
         products: hits.map(hit => ({
           ...hit._source,
           score: hit._score,
-          highlights: hit.highlight,
         })),
         total,
-        aggregations: response.body?.aggregations || {},
         page,
         limit,
         totalPages: Math.ceil(total / limit),
       };
 
     } catch (error) {
-      console.error('🔥 OPENSEARCH ERROR:', JSON.stringify(error, null, 2));
-
-      // 🔥 DO NOT CRASH APP — RETURN SAFE RESPONSE
+      console.error('🔥 SEARCH ERROR:', error);
       return {
         products: [],
         total: 0,
-        aggregations: {},
         page,
         limit,
         totalPages: 0,
@@ -112,79 +139,38 @@ const searchOperations = {
     }
   },
 
-
   buildSearchQuery(query, filters) {
     const must = [];
     const filter = [{ term: { isActive: true } }];
 
-    // 🔥 TEXT SEARCH
     if (query && query.trim()) {
       must.push({
         multi_match: {
           query,
-          fields: [
-            'name^5',
-            'name.keyword^10',
-            'description^2',
-            'sku^4',
-            'tags^3'
-          ],
+          fields: ['name^5', 'description^2', 'sku^4'],
           fuzziness: 'AUTO',
         },
       });
     }
 
-    // CATEGORY
     if (filters.categoryId) {
       filter.push({ term: { categoryId: filters.categoryId } });
     }
 
-    // PRICE
-    if (filters.minPrice || filters.maxPrice) {
-      const range = {};
-      if (filters.minPrice) range.gte = filters.minPrice;
-      if (filters.maxPrice) range.lte = filters.maxPrice;
-
-      filter.push({ range: { price: range } });
-    }
-
-    // 🔥 FIXED BOOLEAN
-    if (filters.inStock === true) {
-      filter.push({ range: { inventoryCount: { gt: 0 } } });
-    }
-
     return {
-      bool: {
-        must,
-        filter,
-      },
+      bool: { must, filter },
     };
   },
 
-
   buildSortQuery(sort) {
-    switch (sort.sortBy) {
-      case 'price_asc':
-        return [{ price: 'asc' }];
-      case 'price_desc':
-        return [{ price: 'desc' }];
-      case 'name_asc':
-        return [{ 'name.keyword': 'asc' }];
-      case 'name_desc':
-        return [{ 'name.keyword': 'desc' }];
-      case 'newest':
-        return [{ createdAt: 'desc' }];
-      default:
-        return [{ _score: 'desc' }];
-    }
+    return [{ _score: 'desc' }];
   },
 };
 
 
-// 🚀 EXPORTS (FIXED)
 module.exports = {
   searchOperations,
   client,
   OPENSEARCH_INDEX,
-  initializeOpenSearch, // ✅ IMPORTANT FIX
+  initializeOpenSearch,
 };
