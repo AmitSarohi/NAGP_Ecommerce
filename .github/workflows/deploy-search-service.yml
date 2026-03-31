@@ -67,6 +67,12 @@ jobs:
             -p '{"data":{"DEPLOYMENT_GUID":"'${{ github.sha }}'"}}'
           echo "✅ Set DEPLOYMENT_GUID to ${{ github.sha }}"
 
+      - name: Restart Deployment to Pick Up ConfigMap Changes
+        run: |
+          # Restart deployment to ensure pods pick up new ConfigMap values
+          kubectl rollout restart deployment/search-service -n ecommerce
+          echo "✅ Restarted search-service deployment"
+
       - name: Deploy Search Service
         run: |
           kubectl apply -f infrastructure/kubernetes/search-service.yaml
