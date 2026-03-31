@@ -54,13 +54,8 @@ jobs:
         run: |
           kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Apply ConfigMaps First
-        run: |
-          kubectl apply -f infrastructure/kubernetes/configmaps.yaml
-
       - name: Inject Dynamic Deployment GUID
         run: |
-          # Patch the configmap with dynamic commit SHA as deployment GUID
           kubectl patch configmap search-service-config \
             --namespace=ecommerce \
             --type=merge \
