@@ -1,3 +1,4 @@
+```javascript
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -25,12 +26,10 @@ const seedAdminUser = async () => {
   const ADMIN_LAST_NAME = process.env.ADMIN_LAST_NAME || 'User';
 
   try {
-    // Check if admin already exists
     const existingAdmin = await userOperations.getUserByEmail(ADMIN_EMAIL);
-    
+
     if (existingAdmin) {
       if (existingAdmin.role !== 'admin') {
-        // Update existing user to admin
         await userOperations.updateUser(existingAdmin.userId, {
           firstName: existingAdmin.firstName,
           lastName: existingAdmin.lastName,
@@ -43,10 +42,9 @@ const seedAdminUser = async () => {
       return;
     }
 
-    // Create new admin user
     const userId = uuidv4();
     const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-    
+
     await userOperations.createUser({
       userId,
       email: ADMIN_EMAIL,
@@ -68,8 +66,8 @@ const seedAdminUser = async () => {
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP, please try again later.'
 });
 
@@ -80,6 +78,15 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/api', limiter);
+
+// ✅ ROOT ROUTE FIX (for ELB health check)
+app.get('/', (req, res) => {
+  res.status(200).json({
+    service: 'user-service',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Initialize Passport for OAuth
 app.use(passport.initialize());
@@ -146,10 +153,9 @@ process.on('SIGTERM', () => {
 const startServer = async () => {
   try {
     await initializeDynamoDB();
-    
-    // Seed admin user after DB initialization
+
     await seedAdminUser();
-    
+
     const server = app.listen(PORT, () => {
       console.log(`User Service running on port ${PORT}`);
       console.log(`API Documentation: http://localhost:${PORT}/api/docs`);
