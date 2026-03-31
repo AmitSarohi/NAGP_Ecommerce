@@ -66,6 +66,16 @@ jobs:
             -p '{"data":{"DEPLOYMENT_GUID":"'${{ github.sha }}'"}}'
           echo "Set DEPLOYMENT_GUID to ${{ github.sha }}"
 
+      - name: Verify ConfigMap Update
+        run: |
+          echo "Verifying DEPLOYMENT_GUID in ConfigMap..."
+          GUID=$(kubectl get configmap user-service-config -n ecommerce -o jsonpath='{.data.DEPLOYMENT_GUID}')
+          if [ "$GUID" != "${{ github.sha }}" ]; then
+            echo "ERROR: ConfigMap GUID mismatch! Expected: ${{ github.sha }}, Got: $GUID"
+            exit 1
+          fi
+          echo "ConfigMap verified: DEPLOYMENT_GUID = $GUID"
+
       - name: Deploy User Service with New Image
         run: |
           kubectl apply -f infrastructure/kubernetes/user-service.yaml
