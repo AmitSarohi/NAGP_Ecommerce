@@ -345,4 +345,16 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * HEALTH INFO - Deployment GUID endpoint
+ */
+router.get('/health/info', (req, res) => {
+  res.status(200).json({
+    service: 'user-service',
+    version: '1.0.0',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 module.exports = router;
