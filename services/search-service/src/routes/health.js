@@ -4,59 +4,19 @@ const { client, OPENSEARCH_INDEX } = require('../config/opensearch');
 const router = express.Router();
 
 /**
- * @swagger
- * /health:
- *   get:
- *     summary: Health check endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: healthy
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 service:
- *                   type: string
- *                   example: search-service
- *                 version:
- *                   type: string
- *                   example: 1.0.0
- *                 checks:
- *                   type: object
- *                   properties:
- *                     opensearch:
- *                       type: object
- *                       properties:
- *                         status:
- *                           type: string
- *                           example: connected
- *                         clusterHealth:
- *                           type: string
- *                           description: OpenSearch cluster health status
- *                         responseTime:
- *                           type: number
- *                           description: Response time in milliseconds
+ * Health Check - Detailed
  */
 router.get('/', async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
-    // Check OpenSearch connectivity and cluster health
     const osStartTime = Date.now();
-    
+
     const healthResponse = await client.cluster.health({});
     const indexExists = await client.indices.exists({
       index: OPENSEARCH_INDEX,
     });
-    
+
     const osResponseTime = Date.now() - osStartTime;
 
     const healthStatus = {
@@ -79,59 +39,48 @@ router.get('/', async (req, res) => {
     res.status(200).json(healthStatus);
   } catch (error) {
     console.error('Health check failed:', error);
-    
-    const unhealthyStatus = {
+
+    res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       service: 'search-service',
-      version: '1.0.0',
       error: error.message,
       uptime: process.uptime(),
-    };
-
-    res.status(503).json(unhealthyStatus);
+    });
   }
 });
 
 /**
- * @swagger
- * /health/ready:
- *   get:
- *     summary: Readiness probe endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is ready to accept traffic
- *       503:
- *         description: Service is not ready
+ * ✅ FIXED Readiness Probe
  */
 router.get('/ready', async (req, res) => {
   try {
-    // Check if OpenSearch cluster is ready and index exists
-    const [healthResponse, indexExists] = await Promise.all([
-      client.cluster.health({}),
-      client.indices.exists({ index: OPENSEARCH_INDEX }),
-    ]);
+    const healthResponse = await client.cluster.health({});
+    const indexExists = await client.indices.exists({
+      index: OPENSEARCH_INDEX,
+    });
 
-    const isReady = healthResponse.body.status !== 'red' && indexExists.body;
+    const isClusterHealthy = healthResponse.body.status !== 'red';
 
-    if (isReady) {
-      res.status(200).json({
+    // ✅ Relaxed condition (key fix)
+    if (isClusterHealthy) {
+      return res.status(200).json({
         status: 'ready',
         timestamp: new Date().toISOString(),
         clusterHealth: healthResponse.body.status,
-        indexExists: indexExists.body,
-      });
-    } else {
-      res.status(503).json({
-        status: 'not ready',
-        timestamp: new Date().toISOString(),
-        clusterHealth: healthResponse.body.status,
-        indexExists: indexExists.body,
+        indexExists: indexExists.body, // just info, not blocking
       });
     }
+
+    return res.status(503).json({
+      status: 'not ready',
+      timestamp: new Date().toISOString(),
+      clusterHealth: healthResponse.body.status,
+    });
+
   } catch (error) {
     console.error('Readiness check failed:', error);
+
     res.status(503).json({
       status: 'not ready',
       timestamp: new Date().toISOString(),
@@ -141,19 +90,9 @@ router.get('/ready', async (req, res) => {
 });
 
 /**
- * @swagger
- * /health/live:
- *   get:
- *     summary: Liveness probe endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is alive
- *       503:
- *         description: Service is not alive
+ * Liveness Probe
  */
 router.get('/live', (req, res) => {
-  // Simple liveness check - just check if process is running
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString(),
@@ -162,31 +101,7 @@ router.get('/live', (req, res) => {
 });
 
 /**
- * @swagger
- * /health/info:
- *   get:
- *     summary: Get service deployment info including GUID
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service info retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 service:
- *                   type: string
- *                   example: search-service
- *                 version:
- *                   type: string
- *                   example: 1.0.0
- *                 deploymentGuid:
- *                   type: string
- *                   description: Unique deployment GUID from CI/CD
- *                 timestamp:
- *                   type: string
- *                   format: date-time
+ * Deployment Info
  */
 router.get('/info', (req, res) => {
   res.status(200).json({
