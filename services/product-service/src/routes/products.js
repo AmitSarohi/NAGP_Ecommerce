@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
+const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 const { productOperations, categoryOperations } = require('../config/database');
 
@@ -17,10 +18,12 @@ const http = axios.create({
 });
 
 /**
- * CREATE PRODUCT
+ * CREATE PRODUCT - ADMIN ONLY
  */
 router.post(
   '/',
+  authMiddleware,
+  adminMiddleware,
   [
     body('sku').trim().isLength({ min: 1, max: 50 }),
     body('name').trim().isLength({ min: 1, max: 200 }),
@@ -189,9 +192,9 @@ router.get('/:productId', async (req, res) => {
 });
 
 /**
- * UPDATE PRODUCT
+ * UPDATE PRODUCT - ADMIN ONLY
  */
-router.put('/:productId', async (req, res) => {
+router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { productId } = req.params;
 
@@ -234,9 +237,9 @@ router.put('/:productId', async (req, res) => {
 });
 
 /**
- * DELETE PRODUCT
+ * DELETE PRODUCT - ADMIN ONLY
  */
-router.delete('/:productId', async (req, res) => {
+router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { productId } = req.params;
 

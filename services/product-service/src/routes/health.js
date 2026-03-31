@@ -157,4 +157,41 @@ router.get('/live', (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /health/info:
+ *   get:
+ *     summary: Get service deployment info including GUID
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Service info retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 service:
+ *                   type: string
+ *                   example: product-service
+ *                 version:
+ *                   type: string
+ *                   example: 1.0.0
+ *                 deploymentGuid:
+ *                   type: string
+ *                   description: Unique deployment GUID from CI/CD
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ */
+router.get('/info', (req, res) => {
+  res.status(200).json({
+    service: 'product-service',
+    version: '1.0.0',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 module.exports = router;
+

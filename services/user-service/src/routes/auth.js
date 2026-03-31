@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { userOperations } = require('../config/database');
+const { passport } = require('../config/oauth');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -138,7 +139,7 @@ router.post('/register', [
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.userId, email: user.email },
+      { userId: user.userId, email: user.email, role: user.role || 'user' },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -243,7 +244,7 @@ router.post('/login', [
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.userId, email: user.email },
+      { userId: user.userId, email: user.email, role: user.role || 'user' },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -342,6 +343,63 @@ router.get('/verify', async (req, res) => {
         message: 'Internal server error',
       },
     });
+  }
+});
+
+/**
+ * @swagger
+ * /auth/google:
+ *   get:
+ *     summary: Initiate Google OAuth login
+ *     tags: [Authentication]
+ *     description: Redirects to Google for OAuth authentication
+ *     responses:
+ *       302:
+ *         description: Redirect to Google OAuth consent screen
+ */
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email'],
+}));
+
+/**
+ * @swagger
+ * /auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback
+ *     tags: [Authentication]
+ *     description: Callback endpoint after Google authentication
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: OAuth authorization code from Google
+ *       - in: query
+ *         name: error
+ *         schema:
+ *           type: string
+ *         description: Error message if authentication failed
+ *     responses:
+ *       200:
+ *         description: Login successful, returns JWT token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: OAuth authentication failed
+ */
+router.get('/google/callback', passport.authenticate('google', { session: false }), (req, res) => {
+  try {
+    const { user, token } = req.user;
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+    
+    // Redirect to frontend with token
+    res.redirect(`${FRONTEND_URL}/login?token=${token}`);
+  } catch (error) {
+    console.error('Google callback error:', error);
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+    res.redirect(`${FRONTEND_URL}/login?error=oauth_failed`);
   }
 });
 

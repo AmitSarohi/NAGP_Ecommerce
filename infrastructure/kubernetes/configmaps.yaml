@@ -12,6 +12,12 @@ data:
   JWT_EXPIRES_IN: "24h"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "100"
+  DEPLOYMENT_GUID: "dev"  # Updated by CI/CD pipeline
+  # Google OAuth Configuration (set via environment variables or secrets)
+  # GOOGLE_CLIENT_ID: ""
+  # GOOGLE_CLIENT_SECRET: ""
+  # GOOGLE_CALLBACK_URL: "/api/auth/google/callback"
+  # FRONTEND_URL: "http://localhost:3000"
 
 ---
 apiVersion: v1
@@ -29,6 +35,8 @@ data:
   AWS_S3_REGION: "eu-north-1"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "200"
+  SEARCH_SERVICE_URL: "http://search-service:3003"
+  DEPLOYMENT_GUID: "dev"  # Updated by CI/CD pipeline
 
 ---
 apiVersion: v1
@@ -43,6 +51,7 @@ data:
   PRODUCT_SERVICE_URL: "http://product-service:3002"  # ✅ correct (internal)
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "300"
+  DEPLOYMENT_GUID: "dev"  # Updated by CI/CD pipeline
 
 ---
 apiVersion: v1

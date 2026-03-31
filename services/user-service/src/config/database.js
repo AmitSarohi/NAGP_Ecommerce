@@ -72,10 +72,13 @@ const userOperations = {
         email: userData.email,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        passwordHash: userData.passwordHash,
+        passwordHash: userData.passwordHash || null,
+        googleId: userData.googleId || null,
+        isOAuthUser: userData.isOAuthUser || false,
+        role: userData.role || 'user',  // 'user' or 'admin'
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        isActive: true,
+        isActive: userData.isActive !== undefined ? userData.isActive : true,
       },
       ConditionExpression: 'attribute_not_exists(userId)',
     };

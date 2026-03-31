@@ -255,6 +255,34 @@ const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
   };
 
+  // Set auth data (for OAuth callback)
+  const setAuthData = (user, token) => {
+    localStorage.setItem('token', token);
+    dispatch({ type: AUTH_ACTIONS.LOGIN_SUCCESS, payload: { user, token } });
+  };
+
+  // Decode JWT to get user role
+  const getUserRole = () => {
+    const token = state.token || localStorage.getItem('token');
+    if (!token) return null;
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const decoded = JSON.parse(jsonPayload);
+      return decoded.role || 'user';
+    } catch (error) {
+      return 'user';
+    }
+  };
+
+  const isAdmin = () => getUserRole() === 'admin';
+
   const value = {
     ...state,
     login,
@@ -262,6 +290,9 @@ const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     clearError,
+    setAuthData,
+    getUserRole,
+    isAdmin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

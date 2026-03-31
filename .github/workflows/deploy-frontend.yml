@@ -1,0 +1,75 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - all-changes
+    paths:
+      - 'frontend/**'
+      - 'infrastructure/kubernetes/frontend.yaml'
+      - '.github/workflows/deploy-frontend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: eu-north-1
+      ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com
+      DEPLOYMENT_GUID: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Frontend Image
+        run: |
+          docker build -t frontend ./frontend
+          docker tag frontend:latest $ECR_REGISTRY/frontend:${{ github.sha }}
+          docker push $ECR_REGISTRY/frontend:${{ github.sha }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Update Frontend ConfigMap with Dynamic GUID
+        run: |
+          kubectl create configmap frontend-config \
+            --namespace=ecommerce \
+            --from-literal=REACT_APP_PRODUCT_SERVICE_URL="/api/products" \
+            --from-literal=REACT_APP_SEARCH_SERVICE_URL="/api/search" \
+            --from-literal=REACT_APP_API_URL="/api" \
+            --from-literal=REACT_APP_DEPLOYMENT_GUID="${{ github.sha }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          echo "✅ Set REACT_APP_DEPLOYMENT_GUID to ${{ github.sha }}"
+
+      - name: Deploy Frontend
+        run: |
+          kubectl apply -f infrastructure/kubernetes/frontend.yaml
+          kubectl set image deployment/frontend \
+            frontend=$ECR_REGISTRY/frontend:${{ github.sha }} -n ecommerce
+
+      - name: Verify Rollout
+        run: |
+          kubectl rollout status deployment/frontend -n ecommerce --timeout=120s

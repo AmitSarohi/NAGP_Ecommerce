@@ -9,15 +9,35 @@ import {
   Link,
   Alert,
   CircularProgress,
+  Divider,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Google as GoogleIcon } from '@mui/icons-material';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
+import { useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, isLoading, error } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle OAuth callback token
+  useEffect(() => {
+    const token = searchParams.get('token');
+    const error = searchParams.get('error');
+    
+    if (token) {
+      // Store token and reload to trigger auth context
+      localStorage.setItem('token', token);
+      // Clear the URL params and reload
+      window.location.href = '/';
+    } else if (error) {
+      toast.error('Google login failed. Please try again.');
+    }
+  }, [searchParams, navigate]);
 
   const {
     register,
@@ -122,6 +142,24 @@ const LoginPage = () => {
               startIcon={isSubmitting || isLoading ? <CircularProgress size={20} /> : null}
             >
               {isSubmitting || isLoading ? 'Signing In...' : 'Sign In'}
+            </Button>
+
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                OR
+              </Typography>
+            </Divider>
+
+            <Button
+              fullWidth
+              variant="outlined"
+              sx={{ mb: 2, py: 1.5, textTransform: 'none' }}
+              startIcon={<GoogleIcon />}
+              onClick={() => {
+                window.location.href = '/api/auth/google';
+              }}
+            >
+              Continue with Google
             </Button>
 
             <Box sx={{ textAlign: 'center' }}>

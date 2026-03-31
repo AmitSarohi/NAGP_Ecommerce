@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   AppBar,
   Toolbar,
@@ -37,23 +38,73 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 
+const API_BASE_URL = '/api'; // works with ingress
+
 const Header = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin } = useAuth();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [anchorEl, setAnchorEl] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [deploymentGuid, setDeploymentGuid] = useState('');
+  const [serviceGuids, setServiceGuids] = useState({
+    frontend: '',
+    product: '',
+    user: '',
+    search: ''
+  });
 
-  // Generate deployment GUID on component mount
+  // Generate deployment GUID on component mount and fetch all service GUIDs
   useEffect(() => {
-    // In production, this would come from CI/CD pipeline
+    // Frontend GUID
     const guid = process.env.REACT_APP_DEPLOYMENT_GUID || uuidv4();
     setDeploymentGuid(guid);
+    setServiceGuids(prev => ({ ...prev, frontend: guid.substring(0, 8) }));
+
+    // Fetch backend service GUIDs
+    const fetchServiceGuids = async () => {
+      try {
+        // Product Service
+        const productRes = await axios.get(`${API_BASE_URL}/products/api/health/info`)
+          .catch(() => ({ data: { deploymentGuid: 'offline' } }));
+        setServiceGuids(prev => ({ 
+          ...prev, 
+          product: productRes.data?.deploymentGuid?.substring(0, 8) || 'unknown' 
+        }));
+      } catch (e) {
+        console.log('Product service info fetch failed');
+      }
+
+      try {
+        // User Service
+        const userRes = await axios.get(`${API_BASE_URL}/users/api/health/info`)
+          .catch(() => ({ data: { deploymentGuid: 'offline' } }));
+        setServiceGuids(prev => ({ 
+          ...prev, 
+          user: userRes.data?.deploymentGuid?.substring(0, 8) || 'unknown' 
+        }));
+      } catch (e) {
+        console.log('User service info fetch failed');
+      }
+
+      try {
+        // Search Service
+        const searchRes = await axios.get(`${API_BASE_URL}/search/api/health/info`)
+          .catch(() => ({ data: { deploymentGuid: 'offline' } }));
+        setServiceGuids(prev => ({ 
+          ...prev, 
+          search: searchRes.data?.deploymentGuid?.substring(0, 8) || 'unknown' 
+        }));
+      } catch (e) {
+        console.log('Search service info fetch failed');
+      }
+    };
+
+    fetchServiceGuids();
   }, []);
 
   const handleSearch = (e) => {
@@ -119,14 +170,18 @@ const Header = () => {
                 <ListItemIcon><PersonIcon /></ListItemIcon>
                 <ListItemText primary="Profile" />
               </ListItem>
-              <ListItem button onClick={() => { navigate('/add-product'); setMobileMenuOpen(false); }}>
-                <ListItemIcon><InventoryIcon /></ListItemIcon>
-                <ListItemText primary="Add Product" />
-              </ListItem>
-              <ListItem button onClick={() => { navigate('/add-category'); setMobileMenuOpen(false); }}>
-                <ListItemIcon><CategoryIcon /></ListItemIcon>
-                <ListItemText primary="Add Category" />
-              </ListItem>
+              {isAdmin && (
+                <>
+                  <ListItem button onClick={() => { navigate('/add-product'); setMobileMenuOpen(false); }}>
+                    <ListItemIcon><InventoryIcon /></ListItemIcon>
+                    <ListItemText primary="Add Product" />
+                  </ListItem>
+                  <ListItem button onClick={() => { navigate('/add-category'); setMobileMenuOpen(false); }}>
+                    <ListItemIcon><CategoryIcon /></ListItemIcon>
+                    <ListItemText primary="Add Category" />
+                  </ListItem>
+                </>
+              )}
               <ListItem button onClick={handleLogout}>
                 <ListItemIcon><LogoutIcon /></ListItemIcon>
                 <ListItemText primary="Logout" />
@@ -166,19 +221,57 @@ const Header = () => {
               E-Commerce
             </Typography>
             
-            {/* Deployment GUID */}
-            <Chip
-              label={`ID: ${deploymentGuid.substring(0, 8)}`}
-              size="small"
-              variant="outlined"
-              sx={{ 
-                mr: 2,
-                fontSize: '0.7rem',
-                height: 24,
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: 'rgba(255,255,255,0.7)'
-              }}
-            />
+            {/* Deployment GUIDs from all services */}
+            <Box sx={{ display: 'flex', gap: 1, mr: 2 }}>
+              <Chip
+                label={`FE: ${serviceGuids.frontend || '...'}`}
+                size="small"
+                variant="outlined"
+                sx={{ 
+                  fontSize: '0.65rem',
+                  height: 20,
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: 'rgba(255,255,255,0.7)',
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+              <Chip
+                label={`PR: ${serviceGuids.product || '...'}`}
+                size="small"
+                variant="outlined"
+                sx={{ 
+                  fontSize: '0.65rem',
+                  height: 20,
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: 'rgba(255,255,255,0.7)',
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+              <Chip
+                label={`US: ${serviceGuids.user || '...'}`}
+                size="small"
+                variant="outlined"
+                sx={{ 
+                  fontSize: '0.65rem',
+                  height: 20,
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: 'rgba(255,255,255,0.7)',
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+              <Chip
+                label={`SE: ${serviceGuids.search || '...'}`}
+                size="small"
+                variant="outlined"
+                sx={{ 
+                  fontSize: '0.65rem',
+                  height: 20,
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: 'rgba(255,255,255,0.7)',
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+            </Box>
           </Box>
 
           {/* Search Bar */}
@@ -215,8 +308,8 @@ const Header = () => {
           )}
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {/* Add Product & Category Buttons - Show on desktop for authenticated users */}
-            {!isMobile && isAuthenticated && (
+            {/* Add Product & Category Buttons - Show for admin users only */}
+            {!isMobile && isAuthenticated && isAdmin && (
               <Box sx={{ display: 'flex', gap: 1, mr: 2 }}>
                 <Button
                   startIcon={<InventoryIcon />}

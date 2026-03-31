@@ -1,0 +1,78 @@
+name: Deploy User Service
+
+on:
+  push:
+    branches:
+      - all-changes
+    paths:
+      - 'services/user-service/**'
+      - 'infrastructure/kubernetes/user-service.yaml'
+      - 'infrastructure/kubernetes/configmaps.yaml'
+      - '.github/workflows/deploy-user-service.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: eu-north-1
+      ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com
+      DEPLOYMENT_GUID: ${{ github.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push User Service Image
+        run: |
+          docker build -t user-service ./services/user-service
+          docker tag user-service:latest $ECR_REGISTRY/user-service:${{ github.sha }}
+          docker push $ECR_REGISTRY/user-service:${{ github.sha }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply ConfigMaps First
+        run: |
+          kubectl apply -f infrastructure/kubernetes/configmaps.yaml
+
+      - name: Inject Dynamic Deployment GUID
+        run: |
+          # Patch the configmap with dynamic commit SHA as deployment GUID
+          kubectl patch configmap user-service-config \
+            --namespace=ecommerce \
+            --type=merge \
+            -p '{"data":{"DEPLOYMENT_GUID":"'${{ github.sha }}'"}}'
+          echo "✅ Set DEPLOYMENT_GUID to ${{ github.sha }}"
+
+      - name: Deploy User Service
+        run: |
+          kubectl apply -f infrastructure/kubernetes/user-service.yaml
+          kubectl set image deployment/user-service \
+            user-service=$ECR_REGISTRY/user-service:${{ github.sha }} -n ecommerce
+
+      - name: Verify Rollout
+        run: |
+          kubectl rollout status deployment/user-service -n ecommerce --timeout=120s

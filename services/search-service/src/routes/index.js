@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { searchOperations } = require('../config/opensearch');
 const axios = require('axios');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -15,8 +16,8 @@ const http = axios.create({
 });
 
 
-// 🚀 INDEX SINGLE PRODUCT
-router.post('/product/:productId', async (req, res) => {
+// 🚀 INDEX SINGLE PRODUCT - PROTECTED
+router.post('/product/:productId', authMiddleware, async (req, res) => {
   try {
     const { productId } = req.params;
 
@@ -54,9 +55,10 @@ router.post('/product/:productId', async (req, res) => {
 });
 
 
-// 🚀 UPDATE PRODUCT
+// 🚀 UPDATE PRODUCT - PROTECTED
 router.put(
   '/product/:productId',
+  authMiddleware,
   [
     body('name').optional().isString(),
     body('description').optional().isString(),
@@ -97,8 +99,8 @@ router.put(
 );
 
 
-// 🚀 DELETE PRODUCT
-router.delete('/product/:productId', async (req, res) => {
+// 🚀 DELETE PRODUCT - PROTECTED
+router.delete('/product/:productId', authMiddleware, async (req, res) => {
   try {
     const { productId } = req.params;
 
@@ -115,8 +117,8 @@ router.delete('/product/:productId', async (req, res) => {
 });
 
 
-// 🚀 SYNC ALL PRODUCTS (SAFE VERSION)
-router.post('/sync/all', async (req, res) => {
+// 🚀 SYNC ALL PRODUCTS - PROTECTED
+router.post('/sync/all', authMiddleware, async (req, res) => {
   try {
     const response = await http.get(`${PRODUCT_SERVICE_URL}/api/products`);
 
@@ -154,8 +156,8 @@ router.post('/sync/all', async (req, res) => {
 });
 
 
-// 🚀 RECREATE INDEX (SAFE)
-router.post('/recreate', async (req, res) => {
+// 🚀 RECREATE INDEX - PROTECTED
+router.post('/recreate', authMiddleware, async (req, res) => {
   try {
     const { client, OPENSEARCH_INDEX, initializeOpenSearch } = require('../config/opensearch');
 
