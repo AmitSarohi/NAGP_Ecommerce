@@ -60,24 +60,18 @@ jobs:
 
       - name: Inject Dynamic Deployment GUID
         run: |
-          # Patch the configmap with dynamic commit SHA as deployment GUID
           kubectl patch configmap user-service-config \
             --namespace=ecommerce \
             --type=merge \
             -p '{"data":{"DEPLOYMENT_GUID":"'${{ github.sha }}'"}}'
-          echo "✅ Set DEPLOYMENT_GUID to ${{ github.sha }}"
+          echo "Set DEPLOYMENT_GUID to ${{ github.sha }}"
 
-      - name: Restart Deployment to Pick Up ConfigMap Changes
-        run: |
-          # Restart deployment to ensure pods pick up new ConfigMap values
-          kubectl rollout restart deployment/user-service -n ecommerce
-          echo "✅ Restarted user-service deployment"
-
-      - name: Deploy User Service
+      - name: Deploy User Service with New Image
         run: |
           kubectl apply -f infrastructure/kubernetes/user-service.yaml
           kubectl set image deployment/user-service \
             user-service=$ECR_REGISTRY/user-service:${{ github.sha }} -n ecommerce
+          echo "Set new image, rollout will pick up updated ConfigMap"
 
       - name: Verify Rollout
         run: |

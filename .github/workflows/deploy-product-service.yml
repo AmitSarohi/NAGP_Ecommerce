@@ -67,17 +67,12 @@ jobs:
             -p '{"data":{"DEPLOYMENT_GUID":"'${{ github.sha }}'"}}'
           echo "✅ Set DEPLOYMENT_GUID to ${{ github.sha }}"
 
-      - name: Restart Deployment to Pick Up ConfigMap Changes
-        run: |
-          # Restart deployment to ensure pods pick up new ConfigMap values
-          kubectl rollout restart deployment/product-service -n ecommerce
-          echo "✅ Restarted product-service deployment"
-
-      - name: Deploy Product Service
+      - name: Deploy Product Service with New Image
         run: |
           kubectl apply -f infrastructure/kubernetes/product-service.yaml
           kubectl set image deployment/product-service \
             product-service=$ECR_REGISTRY/product-service:${{ github.sha }} -n ecommerce
+          echo "✅ Set new image, rollout will pick up updated ConfigMap"
 
       - name: Verify Rollout
         run: |
