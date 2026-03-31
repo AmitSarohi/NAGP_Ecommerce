@@ -1,4 +1,4 @@
-```javascript
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -17,6 +17,8 @@ const { userOperations } = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+let server; // ✅ FIX: needed for graceful shutdown
 
 // Seed initial admin user
 const seedAdminUser = async () => {
@@ -55,10 +57,7 @@ const seedAdminUser = async () => {
       isActive: true,
     });
 
-    console.log('✅ Created initial admin user:');
-    console.log('   Email:', ADMIN_EMAIL);
-    console.log('   Password:', ADMIN_PASSWORD);
-    console.log('   ⚠️  Change default credentials in production!');
+    console.log('✅ Created initial admin user:', ADMIN_EMAIL);
   } catch (error) {
     console.error('❌ Failed to seed admin user:', error.message);
   }
@@ -79,7 +78,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/api', limiter);
 
-// ✅ ROOT ROUTE FIX (for ELB health check)
+// ✅ ROOT ROUTE (ELB health check fix)
 app.get('/', (req, res) => {
   res.status(200).json({
     service: 'user-service',
@@ -107,16 +106,17 @@ const swaggerOptions = {
     info: {
       title: 'User Service API',
       version: '1.0.0',
-      description: 'User management microservice API documentation',
+      description: 'User management microservice API documentation'
     },
     servers: [
       {
-        url: `http://localhost:${PORT}/api`,
-        description: 'Development server',
-      },
-    ],
+        // ✅ FIXED (no template string bug)
+        url: 'http://localhost:' + PORT + '/api',
+        description: 'Development server'
+      }
+    ]
   },
-  apis: ['./src/routes/*.js'],
+  apis: ['./src/routes/*.js']
 };
 
 const specs = swaggerJsdoc(swaggerOptions);
@@ -145,23 +145,23 @@ app.use('*', (req, res) => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-  });
+  if (server) {
+    server.close(() => {
+      console.log('Process terminated');
+    });
+  }
 });
 
 const startServer = async () => {
   try {
     await initializeDynamoDB();
-
     await seedAdminUser();
 
-    const server = app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log(`User Service running on port ${PORT}`);
       console.log(`API Documentation: http://localhost:${PORT}/api/docs`);
     });
 
-    return server;
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
@@ -173,3 +173,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
