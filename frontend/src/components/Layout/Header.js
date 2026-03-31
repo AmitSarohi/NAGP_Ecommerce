@@ -69,7 +69,7 @@ const Header = () => {
     const fetchServiceGuids = async () => {
       try {
         // Product Service
-        const productRes = await axios.get(`${API_BASE_URL}/products/api/health/info`)
+        const productRes = await axios.get(`${API_BASE_URL}/products/health/info`)
           .catch(() => ({ data: { deploymentGuid: 'offline' } }));
         setServiceGuids(prev => ({ 
           ...prev, 
@@ -81,7 +81,7 @@ const Header = () => {
 
       try {
         // User Service
-        const userRes = await axios.get(`${API_BASE_URL}/users/api/health/info`)
+        const userRes = await axios.get(`${API_BASE_URL}/users/health/info`)
           .catch(() => ({ data: { deploymentGuid: 'offline' } }));
         setServiceGuids(prev => ({ 
           ...prev, 
@@ -93,7 +93,7 @@ const Header = () => {
 
       try {
         // Search Service
-        const searchRes = await axios.get(`${API_BASE_URL}/search/api/health/info`)
+        const searchRes = await axios.get(`${API_BASE_URL}/search/health/info`)
           .catch(() => ({ data: { deploymentGuid: 'offline' } }));
         setServiceGuids(prev => ({ 
           ...prev, 
