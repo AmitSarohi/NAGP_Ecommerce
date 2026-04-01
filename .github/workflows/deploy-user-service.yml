@@ -54,6 +54,17 @@ jobs:
         run: |
           kubectl create namespace ecommerce --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Apply Secrets (OAuth Credentials)
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        run: |
+          # Substitute environment variables into the secrets file
+          envsubst < infrastructure/kubernetes/user-service-secrets.yaml > /tmp/user-service-secrets.yaml
+          kubectl apply -f /tmp/user-service-secrets.yaml
+          rm /tmp/user-service-secrets.yaml
+          echo "✅ Applied OAuth secrets"
+
       - name: Inject Dynamic Deployment GUID
         run: |
           kubectl patch configmap user-service-config \
