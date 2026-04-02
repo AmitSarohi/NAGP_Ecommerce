@@ -49,6 +49,7 @@ const initializeOAuth = () => {
               googleId,
               isOAuthUser: true,
               isActive: true,
+              role: 'user',  // ✅ Default role for OAuth users
             });
             user = await userOperations.getUserById(userId);
             console.log('✅ Created new user from Google OAuth:', email);
@@ -65,7 +66,7 @@ const initializeOAuth = () => {
 
           // Generate JWT token
           const token = jwt.sign(
-            { userId: user.userId, email: user.email },
+            { userId: user.userId, email: user.email, role: user.role || 'user' },
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
           );
