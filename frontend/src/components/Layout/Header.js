@@ -223,6 +223,33 @@ const Header = () => {
             
             {/* Deployment GUIDs from all services */}
             <Box sx={{ display: 'flex', gap: 1, mr: 2 }}>
+              {isAuthenticated && isAdmin && (
+                <Chip
+                  label="ADMIN"
+                  size="small"
+                  color="secondary"
+                  sx={{ 
+                    fontSize: '0.65rem',
+                    height: 20,
+                    fontWeight: 'bold',
+                    '& .MuiChip-label': { px: 1 }
+                  }}
+                />
+              )}
+              {isAuthenticated && !isAdmin && (
+                <Chip
+                  label="USER"
+                  size="small"
+                  variant="outlined"
+                  sx={{ 
+                    fontSize: '0.65rem',
+                    height: 20,
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    color: 'rgba(255,255,255,0.7)',
+                    '& .MuiChip-label': { px: 1 }
+                  }}
+                />
+              )}
               <Chip
                 label={`FE: ${serviceGuids.frontend || '...'}`}
                 size="small"

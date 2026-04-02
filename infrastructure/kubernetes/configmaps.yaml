@@ -18,6 +18,11 @@ data:
   # Google OAuth credentials set via secrets:
   # GOOGLE_CLIENT_ID: from user-service-secrets
   # GOOGLE_CLIENT_SECRET: from user-service-secrets
+  # Admin user configuration
+  ADMIN_EMAIL: "admin@nagp.com"
+  ADMIN_PASSWORD: "admin123"
+  ADMIN_FIRST_NAME: "Admin"
+  ADMIN_LAST_NAME: "User"
 
 ---
 apiVersion: v1
