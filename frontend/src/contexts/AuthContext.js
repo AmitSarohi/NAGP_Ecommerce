@@ -265,7 +265,13 @@ const AuthProvider = ({ children }) => {
   const getUserRole = () => {
     // Check localStorage first - it's cleared synchronously on logout
     const token = localStorage.getItem('token');
-    if (!token) return null;
+    console.log('getUserRole token:', token, 'type:', typeof token);
+    
+    // Explicit check for null/undefined/empty
+    if (token === null || token === undefined || token === '') {
+      console.log('Token is empty, returning null');
+      return null;
+    }
     
     // If we have a token, prioritize API response role if available
     if (state.user?.role) {
