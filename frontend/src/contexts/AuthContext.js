@@ -263,13 +263,16 @@ const AuthProvider = ({ children }) => {
 
   // Decode JWT to get user role
   const getUserRole = () => {
-    // Prioritize user role from API response (state.user)
+    // Check localStorage first - it's cleared synchronously on logout
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    
+    // If we have a token, prioritize API response role if available
     if (state.user?.role) {
       return state.user.role;
     }
-    // Only check localStorage - state.token may be stale after logout
-    const token = localStorage.getItem('token');
-    if (!token) return null;
+    
+    // Fallback: decode from JWT token
     try {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
