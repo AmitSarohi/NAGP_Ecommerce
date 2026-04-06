@@ -127,7 +127,7 @@ const Header = () => {
   const handleLogout = () => {
     handleMenuClose();  // Close menu first
     logout();           // Clear token and state
-    window.location.href = '/login';  // Full page reload to clear all state
+    window.location.reload();  // Force full browser reload
   };
 
   const handleProfile = () => {
