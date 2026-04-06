@@ -125,9 +125,9 @@ const Header = () => {
   };
 
   const handleLogout = () => {
-    logout();
-    handleMenuClose();
-    navigate('/');
+    handleMenuClose();  // Close menu first
+    logout();           // Then logout
+    navigate('/');      // Then navigate
   };
 
   const handleProfile = () => {
