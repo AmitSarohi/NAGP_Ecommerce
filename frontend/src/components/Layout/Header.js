@@ -170,7 +170,7 @@ const Header = () => {
                 <ListItemIcon><PersonIcon /></ListItemIcon>
                 <ListItemText primary="Profile" />
               </ListItem>
-              {isAdmin && (
+              {isAdmin() && (
                 <>
                   <ListItem button onClick={() => { navigate('/add-product'); setMobileMenuOpen(false); }}>
                     <ListItemIcon><InventoryIcon /></ListItemIcon>
@@ -223,7 +223,7 @@ const Header = () => {
             
             {/* Deployment GUIDs from all services */}
             <Box sx={{ display: 'flex', gap: 1, mr: 2 }}>
-              {isAuthenticated && isAdmin && (
+              {isAuthenticated && isAdmin() && (
                 <Chip
                   label="ADMIN"
                   size="small"
@@ -236,7 +236,7 @@ const Header = () => {
                   }}
                 />
               )}
-              {isAuthenticated && !isAdmin && (
+              {isAuthenticated && !isAdmin() && (
                 <Chip
                   label="USER"
                   size="small"
@@ -336,7 +336,7 @@ const Header = () => {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {/* Add Product & Category Buttons - Show for admin users only */}
-            {!isMobile && isAuthenticated && isAdmin && (
+            {!isMobile && isAuthenticated && isAdmin() && (
               <Box sx={{ display: 'flex', gap: 1, mr: 2 }}>
                 <Button
                   startIcon={<InventoryIcon />}
