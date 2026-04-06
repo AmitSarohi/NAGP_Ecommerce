@@ -264,6 +264,8 @@ const AuthProvider = ({ children }) => {
   // Decode JWT to get user role
   const getUserRole = () => {
     // Prioritize user role from API response (state.user)
+    console.log('Get Token:',localStorage.getItem('token'))
+    console.log('DEBUG state.user:', state.user); 
     if (state.user?.role) {
       return state.user.role;
     }
