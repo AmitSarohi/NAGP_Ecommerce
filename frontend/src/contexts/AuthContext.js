@@ -263,7 +263,11 @@ const AuthProvider = ({ children }) => {
 
   // Decode JWT to get user role
   const getUserRole = () => {
-    // Always read from localStorage to get the most current token
+    // Prioritize user role from API response (state.user)
+    if (state.user?.role) {
+      return state.user.role;
+    }
+    // Fallback: decode from token if user not loaded yet
     const token = localStorage.getItem('token') || state.token;
     if (!token) return null;
     try {
