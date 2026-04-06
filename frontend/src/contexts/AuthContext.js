@@ -263,7 +263,8 @@ const AuthProvider = ({ children }) => {
 
   // Decode JWT to get user role
   const getUserRole = () => {
-    const token = state.token || localStorage.getItem('token');
+    // Always read from localStorage to get the most current token
+    const token = localStorage.getItem('token') || state.token;
     if (!token) return null;
     try {
       const base64Url = token.split('.')[1];
