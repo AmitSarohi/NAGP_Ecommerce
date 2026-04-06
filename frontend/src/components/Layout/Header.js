@@ -126,8 +126,8 @@ const Header = () => {
 
   const handleLogout = () => {
     handleMenuClose();  // Close menu first
-    logout();           // Then logout
-    navigate('/');      // Then navigate
+    logout();           // Clear token and state
+    window.location.href = '/login';  // Full page reload to clear all state
   };
 
   const handleProfile = () => {
