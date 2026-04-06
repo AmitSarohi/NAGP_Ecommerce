@@ -132,6 +132,7 @@ router.post('/register', [
       firstName,
       lastName,
       passwordHash,
+      role: 'user',  // ✅ Explicitly set role to user (not admin)
     });
 
     // Get created user
