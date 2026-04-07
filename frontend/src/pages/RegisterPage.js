@@ -18,7 +18,6 @@ import { useAuth } from '../contexts/AuthContext';
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { register: registerUser, isLoading, error } = useAuth();
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -33,7 +32,6 @@ const RegisterPage = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
 
-    // 🔥 IMPORTANT: clear old token
     localStorage.removeItem('token');
 
     const result = await registerUser({
@@ -44,10 +42,7 @@ const RegisterPage = () => {
     });
 
     if (result.success) {
-      // ✅ Better UX (recommended)
       navigate('/login');
-      // OR if auto-login desired:
-      // navigate('/');
     }
 
     setIsSubmitting(false);
@@ -55,19 +50,14 @@ const RegisterPage = () => {
 
   return (
     <Container maxWidth="sm">
-      <Box
-        sx={{
-          mt: 8,
-          display: 'flex',
-          justifyContent: 'center',
-        }}
-      >
-        <Paper sx={{ p: 4, width: '100%' }}>
-          <Typography variant="h4" gutterBottom fontWeight={600}>
+      <Box mt={8}>
+        <Paper sx={{ p: 4 }}>
+
+          <Typography variant="h4" fontWeight={600} mb={1}>
             Create Account
           </Typography>
 
-          <Typography variant="body2" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" mb={3}>
             Join us today!
           </Typography>
 
@@ -78,8 +68,8 @@ const RegisterPage = () => {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)}>
-            <Grid container spacing={2}>
 
+            <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -105,7 +95,6 @@ const RegisterPage = () => {
                   helperText={errors.lastName?.message}
                 />
               </Grid>
-
             </Grid>
 
             <TextField
@@ -165,9 +154,14 @@ const RegisterPage = () => {
               )}
             </Button>
 
-            <Typography sx={{ mt: 2, textAlign: 'center' }}>
+            {/* ✅ NAVIGATION BACK TO LOGIN */}
+            <Typography mt={2} textAlign="center">
               Already have an account?{' '}
-              <Link component="button" onClick={() => navigate('/login')}>
+              <Link
+                component="button"
+                onClick={() => navigate('/login')}
+                underline="hover"
+              >
                 Sign In
               </Link>
             </Typography>
