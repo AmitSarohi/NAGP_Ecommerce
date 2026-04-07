@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 
-import Layout from './components/Layout/Layout';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 
@@ -16,26 +15,30 @@ import ProfilePage from './pages/ProfilePage';
 import AddProductPage from './pages/AddProductPage';
 import AddCategoryPage from './pages/AddCategoryPage';
 
-// Protected Route Component
+// Route Guards
 import ProtectedRoute from './components/Auth/ProtectedRoute';
-
-// Loading Component
-import LoadingSpinner from './components/UI/LoadingSpinner';
+import AdminRoute from './components/Auth/AdminRoute';
 
 function App() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
+
       <Box component="main" sx={{ flexGrow: 1, pt: 2, pb: 4 }}>
         <Routes>
-          {/* Public Routes */}
+
+          {/* =========================
+              PUBLIC ROUTES
+          ========================= */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/product/:productId" element={<ProductDetailsPage />} />
-          
-          {/* Protected Routes */}
+
+          {/* =========================
+              PROTECTED ROUTES
+          ========================= */}
           <Route
             path="/profile"
             element={
@@ -44,27 +47,36 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* =========================
+              ADMIN ROUTES 🔥
+          ========================= */}
           <Route
             path="/add-product"
             element={
-              <ProtectedRoute>
+              <AdminRoute>
                 <AddProductPage />
-              </ProtectedRoute>
+              </AdminRoute>
             }
           />
+
           <Route
             path="/add-category"
             element={
-              <ProtectedRoute>
+              <AdminRoute>
                 <AddCategoryPage />
-              </ProtectedRoute>
+              </AdminRoute>
             }
           />
-          
-          {/* Fallback Route */}
+
+          {/* =========================
+              FALLBACK
+          ========================= */}
           <Route path="*" element={<Navigate to="/" replace />} />
+
         </Routes>
       </Box>
+
       <Footer />
     </Box>
   );

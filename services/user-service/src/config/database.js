@@ -1,6 +1,8 @@
 const AWS = require('aws-sdk');
 
-// Configure AWS SDK
+/* =========================
+   AWS CONFIG
+========================= */
 AWS.config.update({
   region: process.env.DYNAMODB_REGION || 'us-east-1',
   ...(process.env.DYNAMODB_ENDPOINT && {
@@ -15,20 +17,19 @@ const docClient = new AWS.DynamoDB.DocumentClient();
 
 const USER_TABLE = process.env.USER_TABLE || 'users';
 
-// Initialize DynamoDB table
+/* =========================
+   INIT TABLE
+========================= */
 const initializeDynamoDB = async () => {
   try {
-    // Check if table exists
     const tables = await dynamodb.listTables().promise();
-    
+
     if (!tables.TableNames.includes(USER_TABLE)) {
       console.log(`Creating table: ${USER_TABLE}`);
-      
+
       const params = {
         TableName: USER_TABLE,
-        KeySchema: [
-          { AttributeName: 'userId', KeyType: 'HASH' },
-        ],
+        KeySchema: [{ AttributeName: 'userId', KeyType: 'HASH' }],
         AttributeDefinitions: [
           { AttributeName: 'userId', AttributeType: 'S' },
           { AttributeName: 'email', AttributeType: 'S' },
@@ -36,34 +37,31 @@ const initializeDynamoDB = async () => {
         GlobalSecondaryIndexes: [
           {
             IndexName: 'EmailIndex',
-            KeySchema: [
-              { AttributeName: 'email', KeyType: 'HASH' },
-            ],
-            Projection: {
-              ProjectionType: 'ALL',
-            }
+            KeySchema: [{ AttributeName: 'email', KeyType: 'HASH' }],
+            Projection: { ProjectionType: 'ALL' },
           },
         ],
         BillingMode: 'PAY_PER_REQUEST',
       };
 
       await dynamodb.createTable(params).promise();
-      console.log(`Table ${USER_TABLE} created successfully`);
-      
-      // Wait for table to become active
       await dynamodb.waitFor('tableExists', { TableName: USER_TABLE }).promise();
+
+      console.log(`✅ Table ${USER_TABLE} created`);
     } else {
-      console.log(`Table ${USER_TABLE} already exists`);
+      console.log(`✅ Table ${USER_TABLE} exists`);
     }
   } catch (error) {
-    console.error('Error initializing DynamoDB:', error);
+    console.error('DynamoDB init error:', error);
     throw error;
   }
 };
 
-// User CRUD operations
+/* =========================
+   USER OPERATIONS
+========================= */
 const userOperations = {
-  // Create user
+  /* CREATE */
   async createUser(userData) {
     const params = {
       TableName: USER_TABLE,
@@ -75,116 +73,86 @@ const userOperations = {
         passwordHash: userData.passwordHash || null,
         googleId: userData.googleId || null,
         isOAuthUser: userData.isOAuthUser || false,
-        role: userData.role || 'user',  // 'user' or 'admin'
+        role: userData.role || 'user',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        isActive: userData.isActive !== undefined ? userData.isActive : true,
+        isActive: userData.isActive ?? true,
       },
       ConditionExpression: 'attribute_not_exists(userId)',
     };
 
-    try {
-      await docClient.put(params).promise();
-      return { success: true, userId: userData.userId };
-    } catch (error) {
-      if (error.code === 'ConditionalCheckFailedException') {
-        throw new Error('User already exists');
-      }
-      throw error;
-    }
+    await docClient.put(params).promise();
+    return { success: true };
   },
 
-  // Get user by ID
+  /* GET BY ID */
   async getUserById(userId) {
-    const params = {
-      TableName: USER_TABLE,
-      Key: { userId },
-    };
+    const res = await docClient
+      .get({
+        TableName: USER_TABLE,
+        Key: { userId },
+      })
+      .promise();
 
-    try {
-      const result = await docClient.get(params).promise();
-      return result.Item;
-    } catch (error) {
-      console.error('Error getting user by ID:', error);
-      throw error;
-    }
+    return res.Item || null;
   },
 
-  // Get user by email
+  /* GET BY EMAIL */
   async getUserByEmail(email) {
-    const params = {
-      TableName: USER_TABLE,
-      IndexName: 'EmailIndex',
-      KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: {
-        ':email': email,
-      },
-    };
+    const res = await docClient
+      .query({
+        TableName: USER_TABLE,
+        IndexName: 'EmailIndex',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: {
+          ':email': email,
+        },
+      })
+      .promise();
 
-    try {
-      const result = await docClient.query(params).promise();
-      return result.Items[0] || null;
-    } catch (error) {
-      console.error('Error getting user by email:', error);
-      throw error;
-    }
+    return res.Items?.[0] || null;
   },
 
-  // Update user
+  /* 🔥 FLEXIBLE UPDATE */
   async updateUser(userId, updateData) {
-    const params = {
-      TableName: USER_TABLE,
-      Key: { userId },
-      UpdateExpression: 'SET #firstName = :firstName, #lastName = :lastName, #updatedAt = :updatedAt',
-      ExpressionAttributeNames: {
-        '#firstName': 'firstName',
-        '#lastName': 'lastName',
-        '#updatedAt': 'updatedAt',
-      },
-      ExpressionAttributeValues: {
-        ':firstName': updateData.firstName,
-        ':lastName': updateData.lastName,
-        ':updatedAt': new Date().toISOString(),
-      },
-      ReturnValues: 'ALL_NEW',
+    const keys = Object.keys(updateData);
+
+    if (!keys.length) return null;
+
+    let UpdateExpression = 'SET #updatedAt = :updatedAt';
+    let ExpressionAttributeNames = { '#updatedAt': 'updatedAt' };
+    let ExpressionAttributeValues = {
+      ':updatedAt': new Date().toISOString(),
     };
 
-    try {
-      const result = await docClient.update(params).promise();
-      return result.Attributes;
-    } catch (error) {
-      console.error('Error updating user:', error);
-      throw error;
-    }
+    keys.forEach((key) => {
+      UpdateExpression += `, #${key} = :${key}`;
+      ExpressionAttributeNames[`#${key}`] = key;
+      ExpressionAttributeValues[`:${key}`] = updateData[key];
+    });
+
+    const res = await docClient
+      .update({
+        TableName: USER_TABLE,
+        Key: { userId },
+        UpdateExpression,
+        ExpressionAttributeNames,
+        ExpressionAttributeValues,
+        ReturnValues: 'ALL_NEW',
+      })
+      .promise();
+
+    return res.Attributes;
   },
 
-  // Delete user (soft delete)
+  /* SOFT DELETE */
   async deleteUser(userId) {
-    const params = {
-      TableName: USER_TABLE,
-      Key: { userId },
-      UpdateExpression: 'SET #isActive = :isActive, #updatedAt = :updatedAt',
-      ExpressionAttributeNames: {
-        '#isActive': 'isActive',
-        '#updatedAt': 'updatedAt',
-      },
-      ExpressionAttributeValues: {
-        ':isActive': false,
-        ':updatedAt': new Date().toISOString(),
-      },
-      ReturnValues: 'ALL_NEW',
-    };
-
-    try {
-      const result = await docClient.update(params).promise();
-      return result.Attributes;
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      throw error;
-    }
+    return this.updateUser(userId, {
+      isActive: false,
+    });
   },
 
-  // List users (with pagination)
+  /* LIST USERS */
   async listUsers(limit = 50, lastEvaluatedKey = null) {
     const params = {
       TableName: USER_TABLE,
@@ -202,19 +170,18 @@ const userOperations = {
       params.ExclusiveStartKey = lastEvaluatedKey;
     }
 
-    try {
-      const result = await docClient.scan(params).promise();
-      return {
-        users: result.Items,
-        lastEvaluatedKey: result.LastEvaluatedKey,
-      };
-    } catch (error) {
-      console.error('Error listing users:', error);
-      throw error;
-    }
+    const res = await docClient.scan(params).promise();
+
+    return {
+      users: res.Items || [],
+      lastEvaluatedKey: res.LastEvaluatedKey || null,
+    };
   },
 };
 
+/* =========================
+   EXPORTS
+========================= */
 module.exports = {
   initializeDynamoDB,
   userOperations,

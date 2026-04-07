@@ -1,143 +1,93 @@
 const express = require('express');
 const AWS = require('aws-sdk');
-const dynamodb = new AWS.DynamoDB();
-const { docClient, USER_TABLE } = require('../config/database');
+const { USER_TABLE } = require('../config/database');
 
 const router = express.Router();
+const dynamodb = new AWS.DynamoDB();
 
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Health check endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is healthy
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: healthy
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- *                 service:
- *                   type: string
- *                   example: user-service
- *                 version:
- *                   type: string
- *                   example: 1.0.0
- *                 checks:
- *                   type: object
- *                   properties:
- *                     database:
- *                       type: object
- *                       properties:
- *                         status:
- *                           type: string
- *                           example: connected
- *                         responseTime:
- *                           type: number
- *                           description: Response time in milliseconds
- */
+/* =========================
+   BASIC HEALTH CHECK
+========================= */
 router.get('/', async (req, res) => {
   const startTime = Date.now();
-  
-  try {
-    // Check database connectivity
-    const dbStartTime = Date.now();
-    await dynamodb.get({
-      TableName: USER_TABLE,
-      Key: { userId: 'health-check' },
-    }).promise().catch(() => {
-      // Ignore Not Found error for health check
-      return {};
-    });
-    const dbResponseTime = Date.now() - dbStartTime;
 
-    const healthStatus = {
+  try {
+    /* =========================
+       DB CHECK
+    ========================= */
+    const dbStart = Date.now();
+
+    await dynamodb
+      .describeTable({ TableName: USER_TABLE })
+      .promise();
+
+    const dbResponseTime = Date.now() - dbStart;
+
+    /* =========================
+       RESPONSE
+    ========================= */
+    res.status(200).json({
       status: 'healthy',
-      timestamp: new Date().toISOString(),
       service: 'user-service',
       version: '1.0.0',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+
       checks: {
         database: {
           status: 'connected',
           responseTime: dbResponseTime,
         },
       },
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-    };
 
-    res.status(200).json(healthStatus);
+      system: {
+        memory: {
+          rss: process.memoryUsage().rss,
+          heapUsed: process.memoryUsage().heapUsed,
+        },
+      },
+    });
+
   } catch (error) {
-    console.error('Health check failed:', error);
-    
-    const unhealthyStatus = {
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      service: 'user-service',
-      version: '1.0.0',
-      error: error.message,
-      uptime: process.uptime(),
-    };
+    console.error('❌ Health check failed:', error);
 
-    res.status(503).json(unhealthyStatus);
+    res.status(503).json({
+      status: 'unhealthy',
+      service: 'user-service',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+    });
   }
 });
 
-/**
- * @swagger
- * /health/ready:
- *   get:
- *     summary: Readiness probe endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is ready to accept traffic
- *       503:
- *         description: Service is not ready
- */
+/* =========================
+   READINESS CHECK
+========================= */
 router.get('/ready', async (req, res) => {
   try {
-    // Check if service can handle requests
-    await dynamodb.describeTable({
-      TableName: USER_TABLE,
-    }).promise();
+    await dynamodb
+      .describeTable({ TableName: USER_TABLE })
+      .promise();
 
     res.status(200).json({
       status: 'ready',
       timestamp: new Date().toISOString(),
     });
+
   } catch (error) {
-    console.error('Readiness check failed:', error);
+    console.error('❌ Readiness failed:', error);
+
     res.status(503).json({
-      status: 'not ready',
-      timestamp: new Date().toISOString(),
+      status: 'not_ready',
       error: error.message,
     });
   }
 });
 
-/**
- * @swagger
- * /health/live:
- *   get:
- *     summary: Liveness probe endpoint
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service is alive
- *       503:
- *         description: Service is not alive
- */
+/* =========================
+   LIVENESS CHECK
+========================= */
 router.get('/live', (req, res) => {
-  // Simple liveness check - just check if process is running
   res.status(200).json({
     status: 'alive',
     timestamp: new Date().toISOString(),
@@ -145,33 +95,9 @@ router.get('/live', (req, res) => {
   });
 });
 
-/**
- * @swagger
- * /health/info:
- *   get:
- *     summary: Get service deployment info including GUID
- *     tags: [Health]
- *     responses:
- *       200:
- *         description: Service info retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 service:
- *                   type: string
- *                   example: user-service
- *                 version:
- *                   type: string
- *                   example: 1.0.0
- *                 deploymentGuid:
- *                   type: string
- *                   description: Unique deployment GUID from CI/CD
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- */
+/* =========================
+   DEPLOYMENT INFO
+========================= */
 router.get('/info', (req, res) => {
   res.status(200).json({
     service: 'user-service',
@@ -182,4 +108,3 @@ router.get('/info', (req, res) => {
 });
 
 module.exports = router;
-

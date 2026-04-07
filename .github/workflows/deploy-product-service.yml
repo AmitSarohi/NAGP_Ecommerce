@@ -3,7 +3,7 @@ name: Deploy Product Service
 on:
   push:
     branches:
-      - all-changes
+      - Authentication
     paths:
       - 'services/product-service/**'
       - 'infrastructure/kubernetes/product-service.yaml'

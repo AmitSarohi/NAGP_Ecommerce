@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const AdminRoute = ({ children }) => {
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
 
+  // ⏳ Loading state
   if (isLoading) {
     return (
       <Box
@@ -19,11 +20,13 @@ const AdminRoute = ({ children }) => {
     );
   }
 
+  // 🔐 Not logged in
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isAdmin()) {
+  // 🚫 Not admin
+  if (!isAdmin) {
     return (
       <Box
         display="flex"
@@ -42,6 +45,7 @@ const AdminRoute = ({ children }) => {
     );
   }
 
+  // ✅ Authorized
   return children;
 };
 

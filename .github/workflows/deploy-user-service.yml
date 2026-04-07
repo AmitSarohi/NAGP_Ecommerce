@@ -3,7 +3,7 @@ name: Deploy User Service
 on:
   push:
     branches:
-      - all-changes
+      - Authentication
     paths:
       - 'services/user-service/**'
       - 'infrastructure/kubernetes/user-service.yaml'

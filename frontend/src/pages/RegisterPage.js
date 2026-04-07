@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { register: registerUser, isLoading, error } = useAuth();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -31,111 +32,92 @@ const RegisterPage = () => {
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
+
+    // 🔥 IMPORTANT: clear old token
+    localStorage.removeItem('token');
+
     const result = await registerUser({
       email: data.email,
       firstName: data.firstName,
       lastName: data.lastName,
       password: data.password,
     });
-    
+
     if (result.success) {
-      navigate('/');
+      // ✅ Better UX (recommended)
+      navigate('/login');
+      // OR if auto-login desired:
+      // navigate('/');
     }
-    
+
     setIsSubmitting(false);
   };
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Container maxWidth="sm">
       <Box
         sx={{
-          marginTop: 8,
+          mt: 8,
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <Paper
-          elevation={3}
-          sx={{
-            padding: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-          }}
-        >
-          <Typography component="h1" variant="h4" gutterBottom fontWeight={600}>
+        <Paper sx={{ p: 4, width: '100%' }}>
+          <Typography variant="h4" gutterBottom fontWeight={600}>
             Create Account
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Join us today! Please fill in your details.
+
+          <Typography variant="body2" sx={{ mb: 3 }}>
+            Join us today!
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+            <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
 
-          <Box
-            component="form"
-            onSubmit={handleSubmit(onSubmit)}
-            sx={{ width: '100%' }}
-          >
+          <form onSubmit={handleSubmit(onSubmit)}>
             <Grid container spacing={2}>
+
               <Grid item xs={12} sm={6}>
                 <TextField
-                  required
                   fullWidth
-                  id="firstName"
                   label="First Name"
-                  autoComplete="given-name"
-                  autoFocus
                   {...register('firstName', {
-                    required: 'First name is required',
-                    minLength: {
-                      value: 2,
-                      message: 'First name must be at least 2 characters',
-                    },
+                    required: 'Required',
+                    minLength: { value: 2, message: 'Min 2 chars' },
                   })}
                   error={!!errors.firstName}
                   helperText={errors.firstName?.message}
                 />
               </Grid>
+
               <Grid item xs={12} sm={6}>
                 <TextField
-                  required
                   fullWidth
-                  id="lastName"
                   label="Last Name"
-                  autoComplete="family-name"
                   {...register('lastName', {
-                    required: 'Last name is required',
-                    minLength: {
-                      value: 2,
-                      message: 'Last name must be at least 2 characters',
-                    },
+                    required: 'Required',
+                    minLength: { value: 2, message: 'Min 2 chars' },
                   })}
                   error={!!errors.lastName}
                   helperText={errors.lastName?.message}
                 />
               </Grid>
+
             </Grid>
 
             <TextField
-              margin="normal"
-              required
               fullWidth
-              id="email"
-              label="Email Address"
+              margin="normal"
+              label="Email"
               type="email"
-              autoComplete="email"
               {...register('email', {
-                required: 'Email is required',
+                required: 'Email required',
                 pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address',
+                  value: /^\S+@\S+$/i,
+                  message: 'Invalid email',
                 },
               })}
               error={!!errors.email}
@@ -143,34 +125,25 @@ const RegisterPage = () => {
             />
 
             <TextField
-              margin="normal"
-              required
               fullWidth
-              id="password"
+              margin="normal"
               label="Password"
               type="password"
-              autoComplete="new-password"
               {...register('password', {
-                required: 'Password is required',
-                minLength: {
-                  value: 6,
-                  message: 'Password must be at least 6 characters',
-                },
+                required: 'Password required',
+                minLength: { value: 6, message: 'Min 6 chars' },
               })}
               error={!!errors.password}
               helperText={errors.password?.message}
             />
 
             <TextField
-              margin="normal"
-              required
               fullWidth
-              id="confirmPassword"
+              margin="normal"
               label="Confirm Password"
               type="password"
-              autoComplete="new-password"
               {...register('confirmPassword', {
-                required: 'Please confirm your password',
+                required: 'Confirm password',
                 validate: (value) =>
                   value === password || 'Passwords do not match',
               })}
@@ -179,31 +152,27 @@ const RegisterPage = () => {
             />
 
             <Button
-              type="submit"
               fullWidth
+              type="submit"
               variant="contained"
-              sx={{ mt: 3, mb: 2, py: 1.5 }}
+              sx={{ mt: 3 }}
               disabled={isSubmitting || isLoading}
-              startIcon={isSubmitting || isLoading ? <CircularProgress size={20} /> : null}
             >
-              {isSubmitting || isLoading ? 'Creating Account...' : 'Create Account'}
+              {isSubmitting || isLoading ? (
+                <CircularProgress size={20} />
+              ) : (
+                'Create Account'
+              )}
             </Button>
 
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="body2">
-                Already have an account?{' '}
-                <Link
-                  component="button"
-                  type="button"
-                  variant="body2"
-                  onClick={() => navigate('/login')}
-                  sx={{ fontWeight: 600 }}
-                >
-                  Sign In
-                </Link>
-              </Typography>
-            </Box>
-          </Box>
+            <Typography sx={{ mt: 2, textAlign: 'center' }}>
+              Already have an account?{' '}
+              <Link component="button" onClick={() => navigate('/login')}>
+                Sign In
+              </Link>
+            </Typography>
+
+          </form>
         </Paper>
       </Box>
     </Container>

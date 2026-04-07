@@ -1,305 +1,179 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Box,
-  Container,
-  Grid,
-  Paper,
-  Typography,
-  Button,
-  Chip,
-  CircularProgress,
-  Alert,
-  Divider,
-  IconButton,
+  Box, Container, Grid, Paper, Typography,
+  Button, Chip, CircularProgress, Alert,
+  Divider, IconButton
 } from '@mui/material';
+
 import {
   ShoppingCart as CartIcon,
   Favorite as FavoriteIcon,
   Share as ShareIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
+
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from 'react-query';
-import axios from 'axios';
+import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+
+import api from '../services/api'; // ✅ FIX
 
 const ProductDetailsPage = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
 
-  const {
-    data: product,
-    isLoading,
-    error,
-  } = useQuery(
-    ['product', productId],
-    async () => {
-      const response = await axios.get(
-        `${process.env.REACT_APP_PRODUCT_SERVICE_URL || 'http://localhost:3002'}/api/products/${productId}`
-      );
-      return response.data;
-    },
-    {
-      enabled: !!productId,
-    }
-  );
+  const [selectedImage, setSelectedImage] = useState(0);
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-US', {
+  /* =========================
+     FETCH PRODUCT
+  ========================= */
+  const { data: product, isLoading, error } = useQuery({
+    queryKey: ['product', productId],
+    queryFn: async () => {
+      const res = await api.get(`/products/${productId}`);
+      return res.data;
+    },
+    enabled: !!productId,
+  });
+
+  const formatPrice = (price) =>
+    new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
     }).format(price);
-  };
 
+  /* =========================
+     HANDLERS
+  ========================= */
   const handleAddToCart = () => {
-    // TODO: Implement cart functionality
-    console.log('Add to cart:', product);
+    toast.success('Added to cart');
+    console.log(product);
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: product?.name,
-        text: product?.description,
-        url: window.location.href,
-      });
-    } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: product.name,
+          text: product.description,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Link copied!');
+      }
+    } catch {
+      toast.error('Share failed');
     }
   };
 
+  /* =========================
+     STATES
+  ========================= */
   if (isLoading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Box display="flex" justifyContent="center" py={8}>
-          <CircularProgress size={60} />
-        </Box>
-      </Container>
+      <Box textAlign="center" py={8}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   if (error || !product) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error?.response?.data?.error?.message || 'Product not found'}
-        </Alert>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-        >
-          Go Back
-        </Button>
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">Product not found</Alert>
+        <Button onClick={() => navigate(-1)}>Go Back</Button>
       </Container>
     );
   }
 
+  /* =========================
+     UI
+  ========================= */
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Back Button */}
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(-1)}
-        sx={{ mb: 3 }}
-      >
-        Back to Products
+
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)}>
+        Back
       </Button>
 
       <Grid container spacing={4}>
-        {/* Product Image */}
+
+        {/* IMAGES */}
         <Grid item xs={12} md={6}>
-          <Paper
-            sx={{
-              height: 500,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: 'grey.50',
-              borderRadius: 2,
-              overflow: 'hidden',
-            }}
-          >
-            {product.images?.[0] ? (
+          <Paper sx={{ height: 400 }}>
+            {product.images?.[selectedImage] ? (
               <img
-                src={product.images[0]}
-                alt={product.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
+                src={product.images[selectedImage]}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
-            ) : (
-              <Box textAlign="center">
-                <Typography variant="h2" color="text.secondary">
-                  📦
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  No image available
-                </Typography>
-              </Box>
-            )}
+            ) : '📦'}
           </Paper>
 
-          {/* Image Gallery */}
-          {product.images && product.images.length > 1 && (
-            <Box sx={{ display: 'flex', gap: 2, mt: 2, overflowX: 'auto' }}>
-              {product.images.slice(1).map((image, index) => (
-                <Paper
-                  key={index}
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    flexShrink: 0,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      boxShadow: 2,
-                    },
-                  }}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name} ${index + 2}`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
-                  />
-                </Paper>
-              ))}
-            </Box>
-          )}
-        </Grid>
-
-        {/* Product Details */}
-        <Grid item xs={12} md={6}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {/* Title and Price */}
-            <Box>
-              <Typography variant="h3" component="h1" gutterBottom fontWeight={600}>
-                {product.name}
-              </Typography>
-              <Typography variant="h4" color="primary.main" fontWeight={600}>
-                {formatPrice(product.price)}
-              </Typography>
-            </Box>
-
-            {/* Stock Status */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {product.inventoryCount > 0 ? (
-                <Chip
-                  label={`${product.inventoryCount} in stock`}
-                  color="success"
-                  variant="outlined"
-                />
-              ) : (
-                <Chip
-                  label="Out of Stock"
-                  color="error"
-                  variant="outlined"
-                />
-              )}
-              <Typography variant="body2" color="text.secondary">
-                SKU: {product.sku}
-              </Typography>
-            </Box>
-
-            {/* Description */}
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Description
-              </Typography>
-              <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                {product.description}
-              </Typography>
-            </Box>
-
-            {/* Attributes */}
-            {product.attributes && Object.keys(product.attributes).length > 0 && (
-              <Box>
-                <Typography variant="h6" gutterBottom>
-                  Specifications
-                </Typography>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  {Object.entries(product.attributes).map(([key, value]) => (
-                    <Box
-                      key={key}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        py: 1,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        '&:last-child': { borderBottom: 'none' },
-                      }}
-                    >
-                      <Typography variant="body2" fontWeight={500}>
-                        {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {value}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Paper>
+          {/* THUMBNAILS */}
+          <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+            {product.images?.map((img, i) => (
+              <Box
+                key={i}
+                onClick={() => setSelectedImage(i)} // ✅ FIX
+                sx={{
+                  width: 60,
+                  height: 60,
+                  cursor: 'pointer',
+                  border: i === selectedImage ? '2px solid blue' : '1px solid #ccc',
+                }}
+              >
+                <img src={img} width="100%" height="100%" />
               </Box>
-            )}
-
-            {/* Action Buttons */}
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<CartIcon />}
-                onClick={handleAddToCart}
-                disabled={product.inventoryCount === 0}
-                sx={{ flex: 1, minWidth: 200 }}
-              >
-                {product.inventoryCount === 0 ? 'Out of Stock' : 'Add to Cart'}
-              </Button>
-              
-              <IconButton
-                size="large"
-                sx={{ border: 1, borderColor: 'divider' }}
-              >
-                <FavoriteIcon />
-              </IconButton>
-              
-              <IconButton
-                size="large"
-                sx={{ border: 1, borderColor: 'divider' }}
-                onClick={handleShare}
-              >
-                <ShareIcon />
-              </IconButton>
-            </Box>
-
-            {/* Additional Info */}
-            <Divider />
-            
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Product Information
-              </Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Product ID:</strong> {product.productId}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Category:</strong> {product.categoryName || 'N/A'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Added on:</strong> {new Date(product.createdAt).toLocaleDateString()}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Last updated:</strong> {new Date(product.updatedAt).toLocaleDateString()}
-                </Typography>
-              </Box>
-            </Box>
+            ))}
           </Box>
         </Grid>
+
+        {/* DETAILS */}
+        <Grid item xs={12} md={6}>
+          <Typography variant="h4">{product.name}</Typography>
+          <Typography variant="h5" color="primary">
+            {formatPrice(product.price)}
+          </Typography>
+
+          <Chip
+            label={
+              product.inventoryCount > 0
+                ? `${product.inventoryCount} in stock`
+                : 'Out of stock'
+            }
+            color={product.inventoryCount > 0 ? 'success' : 'error'}
+          />
+
+          <Typography sx={{ mt: 2 }}>{product.description}</Typography>
+
+          {/* ACTIONS */}
+          <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<CartIcon />}
+              disabled={!product.inventoryCount}
+              onClick={handleAddToCart}
+            >
+              Add to Cart
+            </Button>
+
+            <IconButton><FavoriteIcon /></IconButton>
+
+            <IconButton onClick={handleShare}>
+              <ShareIcon />
+            </IconButton>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="body2">
+            SKU: {product.sku}
+          </Typography>
+
+        </Grid>
+
       </Grid>
     </Container>
   );

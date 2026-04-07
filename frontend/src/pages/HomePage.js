@@ -6,106 +6,74 @@ import {
   Button,
   Grid,
   Card,
-  CardMedia,
   CardContent,
   CardActions,
-  Chip,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, ShoppingBag as ShoppingBagIcon } from '@mui/icons-material';
+import {
+  Search as SearchIcon,
+  ShoppingBag as ShoppingBagIcon,
+} from '@mui/icons-material';
 
 const HomePage = () => {
   const navigate = useNavigate();
 
+  /* =========================
+     STATIC CATEGORIES (can replace with API later)
+  ========================= */
   const featuredCategories = [
-    {
-      id: 1,
-      name: 'Electronics',
-      description: 'Latest gadgets and devices',
-      image: 'https://via.placeholder.com/300x200/1976d2/ffffff?text=Electronics',
-      color: '#1976d2',
-    },
-    {
-      id: 2,
-      name: 'Clothing',
-      description: 'Fashion and apparel',
-      image: 'https://via.placeholder.com/300x200/dc004e/ffffff?text=Clothing',
-      color: '#dc004e',
-    },
-    {
-      id: 3,
-      name: 'Books',
-      description: 'Educational and entertainment',
-      image: 'https://via.placeholder.com/300x200/2e7d32/ffffff?text=Books',
-      color: '#2e7d32',
-    },
-    {
-      id: 4,
-      name: 'Home & Garden',
-      description: 'Home improvement essentials',
-      image: 'https://via.placeholder.com/300x200/ed6c02/ffffff?text=Home+Garden',
-      color: '#ed6c02',
-    },
+    { id: 1, name: 'Electronics', description: 'Latest gadgets', color: '#1976d2' },
+    { id: 2, name: 'Clothing', description: 'Fashion apparel', color: '#dc004e' },
+    { id: 3, name: 'Books', description: 'Knowledge & stories', color: '#2e7d32' },
+    { id: 4, name: 'Home & Garden', description: 'Home essentials', color: '#ed6c02' },
   ];
 
   const features = [
-    {
-      title: 'Fast Delivery',
-      description: 'Quick and reliable shipping to your doorstep',
-      icon: '🚚',
-    },
-    {
-      title: 'Secure Payment',
-      description: 'Safe and secure payment processing',
-      icon: '🔒',
-    },
-    {
-      title: '24/7 Support',
-      description: 'Round-the-clock customer service',
-      icon: '💬',
-    },
-    {
-      title: 'Quality Products',
-      description: 'Curated selection of high-quality items',
-      icon: '⭐',
-    },
+    { title: 'Fast Delivery', description: 'Quick shipping', icon: '🚚' },
+    { title: 'Secure Payment', description: 'Safe transactions', icon: '🔒' },
+    { title: '24/7 Support', description: 'Always here', icon: '💬' },
+    { title: 'Quality Products', description: 'Best quality', icon: '⭐' },
   ];
 
   return (
     <Box>
-      {/* Hero Section */}
+
+      {/* =========================
+         HERO
+      ========================= */}
       <Box
         sx={{
           bgcolor: 'primary.main',
           color: 'white',
           py: 8,
           textAlign: 'center',
-          background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
         }}
       >
         <Container maxWidth="md">
-          <Typography variant="h2" component="h1" gutterBottom fontWeight={700}>
+          <Typography variant="h2" fontWeight={700}>
             Welcome to E-Commerce Platform
           </Typography>
-          <Typography variant="h5" paragraph sx={{ mb: 4, opacity: 0.9 }}>
+
+          <Typography variant="h5" sx={{ mb: 4, opacity: 0.9 }}>
             Discover amazing products at unbeatable prices
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
             <Button
               variant="contained"
-              size="large"
               startIcon={<SearchIcon />}
               onClick={() => navigate('/search')}
-              sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'grey.100' } }}
+              sx={{ bgcolor: 'white', color: 'primary.main' }}
             >
               Browse Products
             </Button>
+
+            {/* 🔥 FIXED: removed broken /categories route */}
             <Button
               variant="outlined"
-              size="large"
               startIcon={<ShoppingBagIcon />}
-              onClick={() => navigate('/categories')}
-              sx={{ borderColor: 'white', color: 'white', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+              onClick={() => navigate('/search')}
+              sx={{ borderColor: 'white', color: 'white' }}
             >
               View Categories
             </Button>
@@ -113,59 +81,53 @@ const HomePage = () => {
         </Container>
       </Box>
 
-      {/* Featured Categories */}
+      {/* =========================
+         CATEGORIES
+      ========================= */}
       <Container sx={{ py: 8 }}>
-        <Typography variant="h3" component="h2" gutterBottom textAlign="center" fontWeight={600}>
+        <Typography variant="h3" textAlign="center" fontWeight={600}>
           Shop by Category
         </Typography>
-        <Typography variant="h6" color="text.secondary" textAlign="center" sx={{ mb: 6 }}>
-          Explore our wide range of product categories
-        </Typography>
 
-        <Grid container spacing={4}>
+        <Grid container spacing={4} sx={{ mt: 4 }}>
           {featuredCategories.map((category) => (
             <Grid item xs={12} sm={6} md={3} key={category.id}>
               <Card
                 sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: 4,
-                  },
+                  textAlign: 'center',
+                  transition: '0.3s',
+                  '&:hover': { transform: 'translateY(-5px)' },
                 }}
               >
-                <CardMedia
-                  component="div"
+                <Box
                   sx={{
-                    height: 140,
+                    height: 120,
                     bgcolor: category.color,
+                    color: 'white',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '3rem',
+                    fontSize: '2rem',
                     fontWeight: 'bold',
                   }}
                 >
-                  {category.name.charAt(0)}
-                </CardMedia>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="h5" component="h3">
-                    {category.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  {category.name[0]}
+                </Box>
+
+                <CardContent>
+                  <Typography variant="h6">{category.name}</Typography>
+                  <Typography variant="body2">
                     {category.description}
                   </Typography>
                 </CardContent>
+
                 <CardActions>
                   <Button
-                    size="small"
-                    onClick={() => navigate(`/search?category=${category.name.toLowerCase()}`)}
+                    onClick={() =>
+                      navigate(`/search?category=${category.name.toLowerCase()}`)
+                    }
                   >
-                    Shop Now
+                    Shop
                   </Button>
                 </CardActions>
               </Card>
@@ -174,29 +136,22 @@ const HomePage = () => {
         </Grid>
       </Container>
 
-      {/* Features Section */}
-      <Box sx={{ bgcolor: 'grey.50', py: 8 }}>
+      {/* =========================
+         FEATURES
+      ========================= */}
+      <Box sx={{ bgcolor: 'grey.100', py: 8 }}>
         <Container>
-          <Typography variant="h3" component="h2" gutterBottom textAlign="center" fontWeight={600}>
+          <Typography variant="h3" textAlign="center" fontWeight={600}>
             Why Choose Us
           </Typography>
-          <Typography variant="h6" color="text.secondary" textAlign="center" sx={{ mb: 6 }}>
-            We offer the best shopping experience
-          </Typography>
 
-          <Grid container spacing={4}>
-            {features.map((feature, index) => (
-              <Grid item xs={12} sm={6} md={3} key={index}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="h2" sx={{ mb: 2 }}>
-                    {feature.icon}
-                  </Typography>
-                  <Typography variant="h6" gutterBottom fontWeight={600}>
-                    {feature.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {feature.description}
-                  </Typography>
+          <Grid container spacing={4} sx={{ mt: 4 }}>
+            {features.map((f, i) => (
+              <Grid item xs={12} sm={6} md={3} key={i}>
+                <Box textAlign="center">
+                  <Typography variant="h3">{f.icon}</Typography>
+                  <Typography variant="h6">{f.title}</Typography>
+                  <Typography>{f.description}</Typography>
                 </Box>
               </Grid>
             ))}
@@ -204,25 +159,23 @@ const HomePage = () => {
         </Container>
       </Box>
 
-      {/* Call to Action */}
+      {/* =========================
+         CTA
+      ========================= */}
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 6 }}>
-        <Container textAlign="center">
-          <Typography variant="h4" gutterBottom fontWeight={600}>
-            Ready to Start Shopping?
-          </Typography>
-          <Typography variant="h6" sx={{ mb: 4, opacity: 0.9 }}>
-            Join thousands of satisfied customers
-          </Typography>
+        <Container sx={{ textAlign: 'center' }}>
+          <Typography variant="h4">Start Shopping Now</Typography>
+
           <Button
             variant="contained"
-            size="large"
+            sx={{ mt: 3, bgcolor: 'white', color: 'primary.main' }}
             onClick={() => navigate('/search')}
-            sx={{ bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: 'grey.100' } }}
           >
-            Start Shopping Now
+            Browse Products
           </Button>
         </Container>
       </Box>
+
     </Box>
   );
 };

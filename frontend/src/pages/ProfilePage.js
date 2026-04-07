@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -12,12 +12,14 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { Person as PersonIcon, Edit as EditIcon } from '@mui/icons-material';
+import { Edit as EditIcon } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const ProfilePage = () => {
   const { user, updateProfile, isLoading } = useAuth();
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,25 +28,36 @@ const ProfilePage = () => {
     handleSubmit,
     formState: { errors },
     reset,
-  } = useForm({
-    defaultValues: {
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-    },
-  });
+  } = useForm();
+
+  /* =========================
+     FIX: sync form with user
+  ========================= */
+  useEffect(() => {
+    if (user) {
+      reset({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+      });
+    }
+  }, [user, reset]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
+
     const result = await updateProfile({
       firstName: data.firstName,
       lastName: data.lastName,
     });
-    
+
     if (result.success) {
+      toast.success('Profile updated successfully');
       setIsEditing(false);
+    } else {
+      toast.error('Failed to update profile');
     }
-    
+
     setIsSubmitting(false);
   };
 
@@ -69,193 +82,114 @@ const ProfilePage = () => {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom fontWeight={600}>
+      <Paper sx={{ p: 4 }}>
+        <Typography variant="h4" gutterBottom fontWeight={600}>
           My Profile
         </Typography>
 
-        <Grid container spacing={4}>
-          {/* Profile Header */}
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 4 }}>
-              <Avatar
-                sx={{
-                  width: 80,
-                  height: 80,
-                  bgcolor: 'primary.main',
-                  fontSize: '2rem',
-                }}
-              >
-                {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-              </Avatar>
-              <Box>
-                <Typography variant="h5" fontWeight={600}>
-                  {user.firstName} {user.lastName}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {user.email}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Member since {new Date(user.createdAt).toLocaleDateString()}
-                </Typography>
-              </Box>
-            </Box>
-          </Grid>
+        {/* =========================
+           HEADER
+        ========================= */}
+        <Box sx={{ display: 'flex', gap: 3, mb: 4 }}>
+          <Avatar sx={{ width: 80, height: 80 }}>
+            {user.firstName?.[0]}{user.lastName?.[0]}
+          </Avatar>
 
-          <Divider sx={{ width: '100%', mb: 3 }} />
-
-          {/* Profile Form */}
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" fontWeight={600}>
-                Personal Information
-              </Typography>
-              {!isEditing && (
-                <Button
-                  variant="outlined"
-                  startIcon={<EditIcon />}
-                  onClick={() => setIsEditing(true)}
-                >
-                  Edit Profile
-                </Button>
-              )}
-            </Box>
-
-            <Box
-              component="form"
-              onSubmit={handleSubmit(onSubmit)}
-              sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}
-            >
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="First Name"
-                    disabled={!isEditing}
-                    {...register('firstName', {
-                      required: 'First name is required',
-                      minLength: {
-                        value: 2,
-                        message: 'First name must be at least 2 characters',
-                      },
-                    })}
-                    error={!!errors.firstName}
-                    helperText={errors.firstName?.message}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Last Name"
-                    disabled={!isEditing}
-                    {...register('lastName', {
-                      required: 'Last name is required',
-                      minLength: {
-                        value: 2,
-                        message: 'Last name must be at least 2 characters',
-                      },
-                    })}
-                    error={!!errors.lastName}
-                    helperText={errors.lastName?.message}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Email Address"
-                    disabled
-                    value={user.email}
-                    helperText="Email cannot be changed"
-                  />
-                </Grid>
-              </Grid>
-
-              {isEditing && (
-                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleCancel}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={isSubmitting}
-                    startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
-                  >
-                    {isSubmitting ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </Box>
-              )}
-            </Box>
-          </Grid>
-
-          <Divider sx={{ width: '100%', my: 3 }} />
-
-          {/* Account Statistics */}
-          <Grid item xs={12}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              Account Activity
+          <Box>
+            <Typography variant="h5">
+              {user.firstName} {user.lastName}
             </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={4}>
-                <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary.main" fontWeight={600}>
-                    0
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Orders Placed
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary.main" fontWeight={600}>
-                    0
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Wishlist Items
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} sm={4}>
-                <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="h4" color="primary.main" fontWeight={600}>
-                    0
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Reviews
-                  </Typography>
-                </Paper>
-              </Grid>
+            <Typography>{user.email}</Typography>
+          </Box>
+        </Box>
+
+        <Divider sx={{ mb: 3 }} />
+
+        {/* =========================
+           FORM
+        ========================= */}
+        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6">Personal Info</Typography>
+
+            {!isEditing && (
+              <Button
+                startIcon={<EditIcon />}
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
+              </Button>
+            )}
+          </Box>
+
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="First Name"
+                disabled={!isEditing}
+                {...register('firstName', { required: 'Required' })}
+                error={!!errors.firstName}
+                helperText={errors.firstName?.message}
+              />
+            </Grid>
+
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Last Name"
+                disabled={!isEditing}
+                {...register('lastName', { required: 'Required' })}
+                error={!!errors.lastName}
+                helperText={errors.lastName?.message}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Email"
+                value={user.email}
+                disabled
+              />
             </Grid>
           </Grid>
 
-          <Divider sx={{ width: '100%', my: 3 }} />
+          {isEditing && (
+            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+              <Button onClick={handleCancel}>Cancel</Button>
 
-          {/* Account Actions */}
-          <Grid item xs={12}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>
-              Account Actions
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Button variant="outlined" sx={{ justifyContent: 'flex-start' }}>
-                View Order History
-              </Button>
-              <Button variant="outlined" sx={{ justifyContent: 'flex-start' }}>
-                Manage Addresses
-              </Button>
-              <Button variant="outlined" sx={{ justifyContent: 'flex-start' }}>
-                Payment Methods
-              </Button>
-              <Button variant="outlined" sx={{ justifyContent: 'flex-start' }}>
-                Notification Preferences
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <CircularProgress size={20} /> : 'Save'}
               </Button>
             </Box>
-          </Grid>
+          )}
+
+        </Box>
+
+        <Divider sx={{ my: 4 }} />
+
+        {/* =========================
+           STATS
+        ========================= */}
+        <Typography variant="h6">Account Activity</Typography>
+
+        <Grid container spacing={2} sx={{ mt: 2 }}>
+          {['Orders', 'Wishlist', 'Reviews'].map((label) => (
+            <Grid item xs={4} key={label}>
+              <Paper sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="h5">0</Typography>
+                <Typography variant="body2">{label}</Typography>
+              </Paper>
+            </Grid>
+          ))}
         </Grid>
+
       </Paper>
     </Container>
   );

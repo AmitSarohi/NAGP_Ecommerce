@@ -12,16 +12,9 @@ const api = axios.create({
   },
 });
 
-// Request interceptor (Auth)
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Response interceptor (Auth error)
+/* =========================
+   RESPONSE INTERCEPTOR ONLY
+========================= */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -33,10 +26,9 @@ api.interceptors.response.use(
   }
 );
 
-
-// ======================
-// PRODUCT API
-// ======================
+/* =========================
+   PRODUCT API
+========================= */
 export const productAPI = {
   getProducts: async (params = {}) => {
     const res = await api.get('/products', { params });
@@ -78,14 +70,13 @@ export const productAPI = {
   },
 };
 
-
-// ======================
-// CATEGORY API (FIXED)
-// ======================
+/* =========================
+   CATEGORY API
+========================= */
 export const categoryAPI = {
   getCategories: async () => {
     const res = await api.get('/categories');
-    return res.data; // ✅ returns ARRAY
+    return res.data;
   },
 
   getCategoryById: async (id) => {

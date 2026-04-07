@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,37 +8,34 @@ require('dotenv').config();
 const userRoutes = require('./routes/users');
 const authRoutes = require('./routes/auth');
 const healthRoutes = require('./routes/health');
-const { initializeDynamoDB } = require('./config/database');
+
+const { initializeDynamoDB, userOperations } = require('./config/database');
 const { initializeOAuth, passport } = require('./config/oauth');
+
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
-const { userOperations } = require('./config/database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-let server; // ✅ FIX: needed for graceful shutdown
+let server;
 
-// Seed initial admin user
+/* =========================
+   SEED ADMIN USER
+========================= */
 const seedAdminUser = async () => {
-  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-  const ADMIN_FIRST_NAME = process.env.ADMIN_FIRST_NAME || 'Admin';
-  const ADMIN_LAST_NAME = process.env.ADMIN_LAST_NAME || 'User';
-
   try {
-    const existingAdmin = await userOperations.getUserByEmail(ADMIN_EMAIL);
+    const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
-    if (existingAdmin) {
-      if (existingAdmin.role !== 'admin') {
-        await userOperations.updateUser(existingAdmin.userId, {
-          firstName: existingAdmin.firstName,
-          lastName: existingAdmin.lastName,
-          role: 'admin'
-        });
-        console.log('✅ Updated existing user to admin:', ADMIN_EMAIL);
+    let admin = await userOperations.getUserByEmail(ADMIN_EMAIL);
+
+    if (admin) {
+      if (admin.role !== 'admin') {
+        await userOperations.updateUser(admin.userId, { role: 'admin' });
+        console.log('🔄 Updated user to admin:', ADMIN_EMAIL);
       } else {
-        console.log('✅ Admin user already exists:', ADMIN_EMAIL);
+        console.log('✅ Admin already exists:', ADMIN_EMAIL);
       }
       return;
     }
@@ -50,120 +46,141 @@ const seedAdminUser = async () => {
     await userOperations.createUser({
       userId,
       email: ADMIN_EMAIL,
-      firstName: ADMIN_FIRST_NAME,
-      lastName: ADMIN_LAST_NAME,
+      firstName: 'Admin',
+      lastName: 'User',
       passwordHash,
       role: 'admin',
       isActive: true,
     });
 
-    console.log('✅ Created initial admin user:', ADMIN_EMAIL);
+    console.log('✅ Admin created:', ADMIN_EMAIL);
   } catch (error) {
-    console.error('❌ Failed to seed admin user:', error.message);
+    console.error('❌ Admin seed error:', error.message);
   }
 };
 
-// Rate limiting
+/* =========================
+   SECURITY MIDDLEWARE
+========================= */
+app.use(helmet());
+
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || '*',
+    credentials: true,
+  })
+);
+
+app.use(morgan('combined'));
+
+/* =========================
+   BODY PARSER
+========================= */
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+/* =========================
+   RATE LIMIT
+========================= */
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again later.'
 });
 
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
 app.use('/api', limiter);
 
-// ✅ ROOT ROUTE (ELB health check fix)
+/* =========================
+   ROOT (Health check)
+========================= */
 app.get('/', (req, res) => {
-  res.status(200).json({
+  res.json({
     service: 'user-service',
     status: 'running',
     timestamp: new Date().toISOString(),
   });
 });
 
-// Initialize Passport for OAuth
+/* =========================
+   OAUTH INIT
+========================= */
 app.use(passport.initialize());
 initializeOAuth();
 
-// Routes
+/* =========================
+   ROUTES
+========================= */
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
-// Swagger documentation
+/* =========================
+   SWAGGER
+========================= */
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
-const swaggerOptions = {
+const specs = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
     info: {
       title: 'User Service API',
       version: '1.0.0',
-      description: 'User management microservice API documentation'
     },
     servers: [
       {
-        // ✅ FIXED (no template string bug)
-        url: 'http://localhost:' + PORT + '/api',
-        description: 'Development server'
-      }
-    ]
+        url: `http://localhost:${PORT}/api`,
+      },
+    ],
   },
-  apis: ['./src/routes/*.js']
-};
+  apis: ['./src/routes/*.js'],
+});
 
-const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// Error handling middleware
+/* =========================
+   ERROR HANDLER
+========================= */
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('🔥 ERROR:', err);
+
   res.status(err.status || 500).json({
     error: {
       message: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
     },
   });
 });
 
-// 404 handler
+/* =========================
+   404 HANDLER
+========================= */
 app.use('*', (req, res) => {
   res.status(404).json({
-    error: {
-      message: 'Route not found',
-    },
+    error: { message: 'Route not found' },
   });
 });
 
-// Graceful shutdown
+/* =========================
+   GRACEFUL SHUTDOWN
+========================= */
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  if (server) {
-    server.close(() => {
-      console.log('Process terminated');
-    });
-  }
+  console.log('SIGTERM received');
+  server?.close(() => console.log('Server stopped'));
 });
 
+/* =========================
+   START SERVER
+========================= */
 const startServer = async () => {
   try {
     await initializeDynamoDB();
     await seedAdminUser();
 
     server = app.listen(PORT, () => {
-      console.log(`User Service running on port ${PORT}`);
-      console.log(`API Documentation: http://localhost:${PORT}/api/docs`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📘 Docs: http://localhost:${PORT}/api/docs`);
     });
-
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Startup failed:', error);
     process.exit(1);
   }
 };
@@ -173,4 +190,3 @@ if (require.main === module) {
 }
 
 module.exports = app;
-
