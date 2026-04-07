@@ -48,19 +48,42 @@ const Header = () => {
 
         {/* ROLE CHIP */}
         <Box sx={{ ml: 2 }}>
-          {isAuthenticated && isAdmin && <Chip label="ADMIN" />}
+          {isAuthenticated && isAdmin && <Chip label="ADMIN" color="secondary" />}
           {isAuthenticated && !isAdmin && <Chip label="USER" />}
         </Box>
 
+        {/* 🔥 ADMIN ACTIONS */}
+        {isAuthenticated && isAdmin && (
+          <Box sx={{ ml: 3, display: 'flex', gap: 1 }}>
+            <Button color="inherit" onClick={() => navigate('/add-product')}>
+              Add Product
+            </Button>
+
+            <Button color="inherit" onClick={() => navigate('/add-category')}>
+              Add Category
+            </Button>
+          </Box>
+        )}
+
+        {/* 🔍 COMMON ACTION */}
+        {isAuthenticated && (
+          <Button
+            color="inherit"
+            sx={{ ml: 2 }}
+            onClick={() => navigate('/search')}
+          >
+            Search
+          </Button>
+        )}
+
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* RIGHT SIDE */}
+        {/* USER MENU */}
         {isAuthenticated ? (
           <>
             <IconButton onClick={handleOpenMenu}>
               <Avatar>
-                {user?.firstName?.charAt(0)?.toUpperCase() ||
-                  user?.email?.charAt(0)?.toUpperCase()}
+                {user?.email?.charAt(0)?.toUpperCase()}
               </Avatar>
             </IconButton>
 
