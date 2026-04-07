@@ -27,13 +27,13 @@ const LoginPage = () => {
       setAuthData(user, token);
       navigate('/');
     }
-  }, [searchParams]);
+  }, [searchParams, setAuthData, navigate]);
 
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit } = useForm();
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-    localStorage.removeItem('token'); // important fix
+    localStorage.removeItem('token');
     const result = await login(data.email, data.password);
     if (result.success) navigate('/');
     setIsSubmitting(false);
@@ -43,28 +43,64 @@ const LoginPage = () => {
     <Container maxWidth="sm">
       <Box mt={8}>
         <Paper sx={{ p: 4 }}>
-          <Typography variant="h4">Sign In</Typography>
+          <Typography variant="h4" mb={2}>
+            Sign In
+          </Typography>
 
           {error && <Alert severity="error">{error}</Alert>}
 
           <form onSubmit={handleSubmit(onSubmit)}>
-            <TextField fullWidth label="Email" {...register('email')} />
-            <TextField fullWidth label="Password" type="password" {...register('password')} />
+            <TextField
+              fullWidth
+              label="Email"
+              margin="normal"
+              {...register('email')}
+            />
 
-            <Button type="submit" fullWidth disabled={isSubmitting || isLoading}>
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              margin="normal"
+              {...register('password')}
+            />
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 2 }}
+              disabled={isSubmitting || isLoading}
+            >
               {isSubmitting ? <CircularProgress size={20} /> : 'Login'}
             </Button>
           </form>
 
-          <Divider>OR</Divider>
+          <Divider sx={{ my: 2 }}>OR</Divider>
 
           <Button
             fullWidth
+            variant="outlined"
             startIcon={<GoogleIcon />}
-            onClick={() => window.location.href = '/api/auth/google'}
+            onClick={() => (window.location.href = '/api/auth/google')}
           >
             Google Login
           </Button>
+
+          {/* ✅ REGISTER SECTION */}
+          <Box mt={3} textAlign="center">
+            <Typography variant="body2">
+              Don’t have an account?
+            </Typography>
+
+            <Button
+              variant="text"
+              onClick={() => navigate('/register')}
+            >
+              Register
+            </Button>
+          </Box>
+
         </Paper>
       </Box>
     </Container>
