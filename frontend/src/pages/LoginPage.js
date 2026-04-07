@@ -11,9 +11,23 @@ import { useAuth } from '../contexts/AuthContext';
 const LoginPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, isLoading, error, setAuthData } = useAuth();
+  const { login, isLoading, error, setAuthData, isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { register, handleSubmit, formState: { errors } } = useForm();
+
+  /* =========================
+     ✅ Redirect if already logged in
+  ========================= */
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
+
+  /* =========================
+     ✅ Handle Google OAuth redirect
+  ========================= */
   useEffect(() => {
     const token = searchParams.get('token');
     const userParam = searchParams.get('user');
@@ -23,19 +37,23 @@ const LoginPage = () => {
         ? JSON.parse(decodeURIComponent(userParam))
         : null;
 
-      localStorage.removeItem('token');
       setAuthData(user, token);
       navigate('/');
     }
   }, [searchParams, setAuthData, navigate]);
 
-  const { register, handleSubmit } = useForm();
-
+  /* =========================
+     LOGIN
+  ========================= */
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-    localStorage.removeItem('token');
+
     const result = await login(data.email, data.password);
-    if (result.success) navigate('/');
+
+    if (result.success) {
+      navigate('/');
+    }
+
     setIsSubmitting(false);
   };
 
@@ -43,18 +61,28 @@ const LoginPage = () => {
     <Container maxWidth="sm">
       <Box mt={8}>
         <Paper sx={{ p: 4 }}>
+
           <Typography variant="h4" mb={2}>
             Sign In
           </Typography>
 
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit(onSubmit)}>
+
             <TextField
               fullWidth
               label="Email"
               margin="normal"
-              {...register('email')}
+              {...register('email', {
+                required: 'Email is required',
+              })}
+              error={!!errors.email}
+              helperText={errors.email?.message}
             />
 
             <TextField
@@ -62,7 +90,11 @@ const LoginPage = () => {
               label="Password"
               type="password"
               margin="normal"
-              {...register('password')}
+              {...register('password', {
+                required: 'Password is required',
+              })}
+              error={!!errors.password}
+              helperText={errors.password?.message}
             />
 
             <Button
@@ -72,8 +104,13 @@ const LoginPage = () => {
               sx={{ mt: 2 }}
               disabled={isSubmitting || isLoading}
             >
-              {isSubmitting ? <CircularProgress size={20} /> : 'Login'}
+              {isSubmitting || isLoading ? (
+                <CircularProgress size={20} />
+              ) : (
+                'Login'
+              )}
             </Button>
+
           </form>
 
           <Divider sx={{ my: 2 }}>OR</Divider>
@@ -87,7 +124,7 @@ const LoginPage = () => {
             Google Login
           </Button>
 
-          {/* ✅ REGISTER SECTION */}
+          {/* REGISTER */}
           <Box mt={3} textAlign="center">
             <Typography variant="body2">
               Don’t have an account?

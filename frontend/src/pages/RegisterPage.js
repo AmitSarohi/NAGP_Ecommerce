@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -17,7 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { register: registerUser, isLoading, error } = useAuth();
+  const { register: registerUser, isLoading, error, isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -29,10 +29,20 @@ const RegisterPage = () => {
 
   const password = watch('password');
 
+  /* =========================
+     ✅ Redirect if already logged in
+  ========================= */
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
+
+  /* =========================
+     SUBMIT
+  ========================= */
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-
-    localStorage.removeItem('token');
 
     const result = await registerUser({
       email: data.email,
@@ -42,7 +52,7 @@ const RegisterPage = () => {
     });
 
     if (result.success) {
-      navigate('/login');
+      navigate('/'); // ✅ FIXED (go to home)
     }
 
     setIsSubmitting(false);
@@ -154,7 +164,7 @@ const RegisterPage = () => {
               )}
             </Button>
 
-            {/* ✅ NAVIGATION BACK TO LOGIN */}
+            {/* LOGIN LINK */}
             <Typography mt={2} textAlign="center">
               Already have an account?{' '}
               <Link
