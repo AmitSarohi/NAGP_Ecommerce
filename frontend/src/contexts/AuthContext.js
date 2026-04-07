@@ -11,6 +11,9 @@ import axios from 'axios';
 const AuthContext = createContext();
 const BASE_URL = '/api';
 
+/* =========================
+   INITIAL STATE
+========================= */
 const initialState = {
   user: null,
   token: localStorage.getItem('token'),
@@ -19,6 +22,9 @@ const initialState = {
   error: null,
 };
 
+/* =========================
+   ACTIONS
+========================= */
 const AUTH_ACTIONS = {
   START: 'START',
   SUCCESS: 'SUCCESS',
@@ -26,6 +32,9 @@ const AUTH_ACTIONS = {
   LOGOUT: 'LOGOUT',
 };
 
+/* =========================
+   REDUCER
+========================= */
 const authReducer = (state, action) => {
   switch (action.type) {
     case AUTH_ACTIONS.START:
@@ -42,16 +51,27 @@ const authReducer = (state, action) => {
       };
 
     case AUTH_ACTIONS.FAILURE:
-      return { ...initialState, isLoading: false, error: action.payload };
+      return {
+        ...state,
+        isLoading: false,
+        error: action.payload,
+      };
 
     case AUTH_ACTIONS.LOGOUT:
-      return { ...initialState, isLoading: false };
+      return {
+        ...initialState,
+        token: null,
+        isLoading: false,
+      };
 
     default:
       return state;
   }
 };
 
+/* =========================
+   AXIOS INTERCEPTORS
+========================= */
 let interceptorsInitialized = false;
 
 const setupInterceptors = (getToken, dispatch) => {
@@ -85,6 +105,9 @@ const setupInterceptors = (getToken, dispatch) => {
   );
 };
 
+/* =========================
+   PROVIDER
+========================= */
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
@@ -95,7 +118,7 @@ export const AuthProvider = ({ children }) => {
   }, [getToken]);
 
   /* =========================
-     🔥 FIX: Restore user from JWT
+     🔥 RESTORE USER FROM JWT
   ========================= */
   useEffect(() => {
     const token = state.token;
@@ -159,11 +182,48 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  /* =========================
+     ✅ REGISTER (FIX ADDED)
+  ========================= */
+  const register = useCallback(async (data) => {
+    try {
+      dispatch({ type: AUTH_ACTIONS.START });
+
+      const res = await axios.post(`${BASE_URL}/auth/register`, data);
+
+      const { token, user } = res.data;
+
+      // OPTIONAL: auto login after register
+      localStorage.setItem('token', token);
+
+      dispatch({
+        type: AUTH_ACTIONS.SUCCESS,
+        payload: { user, token },
+      });
+
+      return { success: true };
+
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message || 'Registration failed';
+
+      dispatch({ type: AUTH_ACTIONS.FAILURE, payload: msg });
+
+      return { success: false };
+    }
+  }, []);
+
+  /* =========================
+     LOGOUT
+  ========================= */
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   }, []);
 
+  /* =========================
+     SET AUTH DATA (OAUTH)
+  ========================= */
   const setAuthData = useCallback((user, token) => {
     localStorage.setItem('token', token);
 
@@ -173,19 +233,26 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
+  /* =========================
+     DERIVED STATE
+  ========================= */
   const role = useMemo(() => state.user?.role || 'user', [state.user]);
   const isAdmin = useMemo(() => role === 'admin', [role]);
 
+  /* =========================
+     CONTEXT VALUE
+  ========================= */
   const value = useMemo(
     () => ({
       ...state,
       role,
       isAdmin,
       login,
+      register, // ✅ FIX ADDED
       logout,
       setAuthData,
     }),
-    [state, role, isAdmin, login, logout, setAuthData]
+    [state, role, isAdmin, login, register, logout, setAuthData]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
