@@ -94,28 +94,41 @@ export const AuthProvider = ({ children }) => {
     setupInterceptors(getToken, dispatch);
   }, [getToken]);
 
+  /* =========================
+     🔥 FIX: Restore user from JWT
+  ========================= */
   useEffect(() => {
-    const loadUser = async () => {
-      if (!state.token) {
-        dispatch({ type: AUTH_ACTIONS.SUCCESS, payload: { user: null } });
-        return;
-      }
+    const token = state.token;
 
-      try {
-        const res = await axios.get(`${BASE_URL}/auth/verify`);
-        dispatch({
-          type: AUTH_ACTIONS.SUCCESS,
-          payload: { user: res.data.user },
-        });
-      } catch {
-        localStorage.removeItem('token');
-        dispatch({ type: AUTH_ACTIONS.LOGOUT });
-      }
-    };
+    if (!token) {
+      dispatch({ type: AUTH_ACTIONS.SUCCESS, payload: { user: null } });
+      return;
+    }
 
-    loadUser();
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+
+      const user = {
+        userId: payload.userId,
+        email: payload.email,
+        role: payload.role || 'user',
+      };
+
+      dispatch({
+        type: AUTH_ACTIONS.SUCCESS,
+        payload: { user, token },
+      });
+
+    } catch (err) {
+      console.error('Invalid token', err);
+      localStorage.removeItem('token');
+      dispatch({ type: AUTH_ACTIONS.LOGOUT });
+    }
   }, [state.token]);
 
+  /* =========================
+     LOGIN
+  ========================= */
   const login = useCallback(async (email, password) => {
     try {
       dispatch({ type: AUTH_ACTIONS.START });
@@ -135,10 +148,13 @@ export const AuthProvider = ({ children }) => {
       });
 
       return { success: true };
+
     } catch (err) {
       const msg =
         err.response?.data?.error?.message || 'Login failed';
+
       dispatch({ type: AUTH_ACTIONS.FAILURE, payload: msg });
+
       return { success: false };
     }
   }, []);
@@ -150,7 +166,11 @@ export const AuthProvider = ({ children }) => {
 
   const setAuthData = useCallback((user, token) => {
     localStorage.setItem('token', token);
-    dispatch({ type: AUTH_ACTIONS.SUCCESS, payload: { user, token } });
+
+    dispatch({
+      type: AUTH_ACTIONS.SUCCESS,
+      payload: { user, token },
+    });
   }, []);
 
   const role = useMemo(() => state.user?.role || 'user', [state.user]);
