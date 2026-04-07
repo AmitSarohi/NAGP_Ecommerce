@@ -41,7 +41,6 @@ router.post(
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
-
       const userId = uuidv4();
 
       await userOperations.createUser({
@@ -51,6 +50,7 @@ router.post(
         lastName,
         passwordHash,
         role: 'user',
+        isActive: true,
       });
 
       const user = await userOperations.getUserById(userId);
@@ -68,6 +68,7 @@ router.post(
       delete user.passwordHash;
 
       res.status(201).json({ token, user });
+
     } catch (error) {
       console.error('REGISTER ERROR:', error);
       res.status(500).json({
@@ -78,7 +79,7 @@ router.post(
 );
 
 /* =========================
-   LOGIN
+   LOGIN (🔥 FIXED)
 ========================= */
 router.post(
   '/login',
@@ -98,19 +99,31 @@ router.post(
       const { email, password } = req.body;
 
       const user = await userOperations.getUserByEmail(email);
+
+      // ❌ User not found
       if (!user) {
-        return res.status(404).json({
-          error: { message: 'User not found' },
+        return res.status(401).json({
+          error: { message: 'Invalid credentials' },
         });
       }
 
+      // ❌ Inactive user
       if (!user.isActive) {
         return res.status(401).json({
           error: { message: 'Account deactivated' },
         });
       }
 
+      // 🔥 FIX: Handle OAuth users
+      if (!user.passwordHash) {
+        return res.status(400).json({
+          error: { message: 'Please login using Google' },
+        });
+      }
+
+      // 🔥 SAFE compare
       const isValid = await bcrypt.compare(password, user.passwordHash);
+
       if (!isValid) {
         return res.status(401).json({
           error: { message: 'Invalid credentials' },
@@ -130,8 +143,9 @@ router.post(
       delete user.passwordHash;
 
       res.json({ token, user });
+
     } catch (error) {
-      console.error('LOGIN ERROR:', error);
+      console.error('LOGIN ERROR:', error); // 🔥 IMPORTANT
       res.status(500).json({
         error: { message: 'Internal server error' },
       });
@@ -168,6 +182,7 @@ router.get('/verify', async (req, res) => {
       valid: true,
       user,
     });
+
   } catch (error) {
     console.error('VERIFY ERROR:', error);
     res.status(401).json({
@@ -199,12 +214,12 @@ router.get(
       const FRONTEND_URL =
         process.env.FRONTEND_URL || 'http://localhost:3000';
 
-      // send user + token
       const encodedUser = encodeURIComponent(JSON.stringify(user));
 
       res.redirect(
         `${FRONTEND_URL}/login?token=${token}&user=${encodedUser}`
       );
+
     } catch (error) {
       console.error('GOOGLE CALLBACK ERROR:', error);
 
