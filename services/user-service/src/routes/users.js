@@ -15,6 +15,28 @@ const sanitizeUser = (user) => {
 };
 
 /* =========================
+   🔥 DEPLOYMENT INFO (NEW)
+========================= */
+router.get('/deployment-info', (req, res) => {
+  res.json({
+    service: 'user-service',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+  });
+});
+
+/* =========================
+   HEALTH CHECK (EXISTING)
+========================= */
+router.get('/health/info', (req, res) => {
+  res.json({
+    service: 'user-service',
+    version: '1.0.0',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* =========================
    GET ALL USERS (ADMIN ONLY)
 ========================= */
 router.get(
@@ -26,7 +48,6 @@ router.get(
   ],
   async (req, res) => {
     try {
-      // 🔥 Only admin can list users
       if (req.user.role !== 'admin') {
         return res.status(403).json({
           error: { message: 'Admin access required' },
@@ -82,7 +103,6 @@ router.get('/:userId', authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // 🔥 Allow admin OR self
     if (req.user.userId !== userId && req.user.role !== 'admin') {
       return res.status(403).json({
         error: { message: 'Access denied' },
@@ -128,7 +148,6 @@ router.put(
       const { userId } = req.params;
       const { firstName, lastName } = req.body;
 
-      // 🔥 Only self OR admin
       if (req.user.userId !== userId && req.user.role !== 'admin') {
         return res.status(403).json({
           error: { message: 'Access denied' },
@@ -186,18 +205,6 @@ router.delete('/:userId', authMiddleware, async (req, res) => {
       error: { message: 'Internal server error' },
     });
   }
-});
-
-/* =========================
-   HEALTH CHECK
-========================= */
-router.get('/health/info', (req, res) => {
-  res.json({
-    service: 'user-service',
-    version: '1.0.0',
-    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
-    timestamp: new Date().toISOString(),
-  });
 });
 
 module.exports = router;
