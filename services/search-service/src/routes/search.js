@@ -4,19 +4,39 @@ const { searchOperations } = require('../config/opensearch');
 
 const router = express.Router();
 
+/* =========================
+   🔥 DEPLOYMENT INFO (NEW)
+========================= */
+router.get('/deployment-info', (req, res) => {
+  res.json({
+    service: 'search-service',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+  });
+});
+
+/* =========================
+   HEALTH INFO
+========================= */
+router.get('/health/info', (req, res) => {
+  res.status(200).json({
+    service: 'search-service',
+    version: '1.0.0',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* =========================
+   SEARCH PRODUCTS
+========================= */
 router.get(
   '/',
   [
     query('q').optional().isString().trim(),
-
     query('categoryId').optional().isString(),
-
     query('minPrice').optional().isFloat({ min: 0 }),
     query('maxPrice').optional().isFloat({ min: 0 }),
-
-    // ✅ FIXED (string-safe boolean)
     query('inStock').optional().isIn(['true', 'false']),
-
     query('sortBy')
       .optional()
       .isIn([
@@ -27,11 +47,9 @@ router.get(
         'name_desc',
         'newest',
       ]),
-
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
   ],
-
   async (req, res) => {
     try {
       const errors = validationResult(req);
@@ -56,7 +74,6 @@ router.get(
         limit = 20,
       } = req.query;
 
-      // 🔥 CLEAN FILTERS
       const filters = {};
 
       if (categoryId) filters.categoryId = categoryId;
@@ -104,17 +121,5 @@ router.get(
     }
   }
 );
-
-/**
- * HEALTH INFO - Deployment GUID endpoint
- */
-router.get('/health/info', (req, res) => {
-  res.status(200).json({
-    service: 'search-service',
-    version: '1.0.0',
-    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
-    timestamp: new Date().toISOString(),
-  });
-});
 
 module.exports = router;

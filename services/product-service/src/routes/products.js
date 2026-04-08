@@ -17,6 +17,28 @@ const http = axios.create({
   timeout: 5000,
 });
 
+/* =========================
+   🔥 DEPLOYMENT INFO (NEW)
+========================= */
+router.get('/deployment-info', (req, res) => {
+  res.json({
+    service: 'product-service',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+  });
+});
+
+/* =========================
+   HEALTH INFO
+========================= */
+router.get('/health/info', (req, res) => {
+  res.status(200).json({
+    service: 'product-service',
+    version: '1.0.0',
+    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 /**
  * CREATE PRODUCT - ADMIN ONLY
  */
@@ -51,7 +73,6 @@ router.post(
         attributes,
       } = req.body;
 
-      // ✅ CATEGORY FETCH (IMPORTANT)
       let category = null;
       try {
         category = await categoryOperations.getCategoryById(categoryId);
@@ -65,7 +86,6 @@ router.post(
         });
       }
 
-      // ✅ SKU CHECK
       let existingProduct = null;
       if (productOperations.getProductBySku) {
         try {
@@ -90,7 +110,7 @@ router.post(
         description,
         price,
         categoryId,
-        categoryName: category.name, // 🔥 CRITICAL FOR SEARCH
+        categoryName: category.name,
         inventoryCount: inventoryCount || 0,
         images: images || [],
         attributes: attributes || {},
@@ -104,16 +124,13 @@ router.post(
       let product = newProduct;
       try {
         product = await productOperations.getProductById(productId);
-      } catch (err) {
-        console.warn('⚠️ getProductById failed');
-      }
+      } catch {}
 
-      // 🔥 AUTO INDEX INTO SEARCH
+      // 🔥 Index to search
       try {
         await http.post(
           `${SEARCH_SERVICE_URL}/api/index/product/${productId}`
         );
-        console.log('✅ Indexed product:', productId);
       } catch (err) {
         console.error('❌ Indexing failed:', err.message);
       }
@@ -121,7 +138,7 @@ router.post(
       res.status(201).json(product);
 
     } catch (error) {
-      console.error('🔥 CREATE PRODUCT ERROR:', JSON.stringify(error, null, 2));
+      console.error('🔥 CREATE PRODUCT ERROR:', error);
       res.status(500).json({
         error: { message: error.message || 'Internal server error' },
       });
@@ -158,7 +175,7 @@ router.get(
       });
 
     } catch (error) {
-      console.error('🔥 GET PRODUCTS ERROR:', JSON.stringify(error, null, 2));
+      console.error('🔥 GET PRODUCTS ERROR:', error);
       res.status(500).json({
         error: { message: error.message },
       });
@@ -184,7 +201,7 @@ router.get('/:productId', async (req, res) => {
     res.json(product);
 
   } catch (error) {
-    console.error('🔥 GET PRODUCT ERROR:', JSON.stringify(error, null, 2));
+    console.error('🔥 GET PRODUCT ERROR:', error);
     res.status(500).json({
       error: { message: error.message },
     });
@@ -192,7 +209,7 @@ router.get('/:productId', async (req, res) => {
 });
 
 /**
- * UPDATE PRODUCT - ADMIN ONLY
+ * UPDATE PRODUCT
  */
 router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -215,13 +232,11 @@ router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
 
     const updatedProduct = await productOperations.getProductById(productId);
 
-    // 🔥 AUTO UPDATE INDEX
     try {
       await http.put(
         `${SEARCH_SERVICE_URL}/api/index/product/${productId}`,
         updatedProduct
       );
-      console.log('✅ Updated index:', productId);
     } catch (err) {
       console.error('❌ Index update failed:', err.message);
     }
@@ -229,7 +244,7 @@ router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
     res.json(updatedProduct);
 
   } catch (error) {
-    console.error('🔥 UPDATE PRODUCT ERROR:', JSON.stringify(error, null, 2));
+    console.error('🔥 UPDATE PRODUCT ERROR:', error);
     res.status(500).json({
       error: { message: error.message },
     });
@@ -237,7 +252,7 @@ router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 /**
- * DELETE PRODUCT - ADMIN ONLY
+ * DELETE PRODUCT
  */
 router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -252,12 +267,10 @@ router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) =
 
     await productOperations.deleteProduct(productId);
 
-    // 🔥 AUTO DELETE INDEX
     try {
       await http.delete(
         `${SEARCH_SERVICE_URL}/api/index/product/${productId}`
       );
-      console.log('✅ Deleted from index:', productId);
     } catch (err) {
       console.error('❌ Index delete failed:', err.message);
     }
@@ -265,23 +278,11 @@ router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) =
     res.json({ message: 'Product deleted successfully' });
 
   } catch (error) {
-    console.error('🔥 DELETE PRODUCT ERROR:', JSON.stringify(error, null, 2));
+    console.error('🔥 DELETE PRODUCT ERROR:', error);
     res.status(500).json({
       error: { message: error.message },
     });
   }
-});
-
-/**
- * HEALTH INFO - Deployment GUID endpoint
- */
-router.get('/health/info', (req, res) => {
-  res.status(200).json({
-    service: 'product-service',
-    version: '1.0.0',
-    deploymentGuid: process.env.DEPLOYMENT_GUID || 'unknown',
-    timestamp: new Date().toISOString(),
-  });
 });
 
 module.exports = router;
