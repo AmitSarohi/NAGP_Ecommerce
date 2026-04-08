@@ -34,7 +34,7 @@ const Header = () => {
     const loadGuids = async () => {
       try {
         const [userRes, productRes, searchRes] = await Promise.all([
-          api.get('/auth/deployment-info'),
+          api.get('/users/deployment-info'),
           api.get('/products/deployment-info'),
           api.get('/search/deployment-info'),
         ]);
