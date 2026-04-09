@@ -1,6 +1,8 @@
 const AWS = require('aws-sdk');
 
-// Configure AWS SDK
+// =========================
+// AWS CONFIG
+// =========================
 AWS.config.update({
   region: process.env.DYNAMODB_REGION || 'us-east-1',
   ...(process.env.DYNAMODB_ENDPOINT && {
@@ -16,14 +18,14 @@ const docClient = new AWS.DynamoDB.DocumentClient();
 const PRODUCT_TABLE = process.env.PRODUCT_TABLE || 'products';
 const CATEGORY_TABLE = process.env.CATEGORY_TABLE || 'categories';
 
-/* =========================
-   INIT DB (RESTORED ✅)
-========================= */
+// =========================
+// INIT DB (SAFE FOR PROD)
+// =========================
 const initializeDynamoDB = async () => {
   try {
     const tables = await dynamodb.listTables().promise();
 
-    // PRODUCT TABLE
+    // ================= PRODUCT TABLE =================
     if (!tables.TableNames.includes(PRODUCT_TABLE)) {
       console.log(`Creating table: ${PRODUCT_TABLE}`);
 
@@ -50,10 +52,16 @@ const initializeDynamoDB = async () => {
         BillingMode: 'PAY_PER_REQUEST',
       }).promise();
 
-      await dynamodb.waitFor('tableExists', { TableName: PRODUCT_TABLE }).promise();
+      await dynamodb.waitFor('tableExists', {
+        TableName: PRODUCT_TABLE,
+      }).promise();
+
+      console.log(`✅ Created table: ${PRODUCT_TABLE}`);
+    } else {
+      console.log(`ℹ️ Table exists: ${PRODUCT_TABLE}`);
     }
 
-    // CATEGORY TABLE
+    // ================= CATEGORY TABLE =================
     if (!tables.TableNames.includes(CATEGORY_TABLE)) {
       console.log(`Creating table: ${CATEGORY_TABLE}`);
 
@@ -74,20 +82,29 @@ const initializeDynamoDB = async () => {
         BillingMode: 'PAY_PER_REQUEST',
       }).promise();
 
-      await dynamodb.waitFor('tableExists', { TableName: CATEGORY_TABLE }).promise();
+      await dynamodb.waitFor('tableExists', {
+        TableName: CATEGORY_TABLE,
+      }).promise();
+
+      console.log(`✅ Created table: ${CATEGORY_TABLE}`);
+    } else {
+      console.log(`ℹ️ Table exists: ${CATEGORY_TABLE}`);
     }
 
-    await createDefaultCategories();
+    // 🔥 IMPORTANT: Disable seed in production
+    if (process.env.NODE_ENV !== 'production') {
+      await createDefaultCategories();
+    }
 
   } catch (error) {
-    console.error('Error initializing DynamoDB:', error);
+    console.error('❌ DynamoDB init error:', error);
     throw error;
   }
 };
 
-/* =========================
-   DEFAULT DATA
-========================= */
+// =========================
+// DEFAULT CATEGORIES (SAFE)
+// =========================
 const createDefaultCategories = async () => {
   const defaults = [
     { name: 'Electronics', description: 'Electronic devices and accessories' },
@@ -99,32 +116,37 @@ const createDefaultCategories = async () => {
 
   for (const c of defaults) {
     try {
-      const existing = await categoryOperations.getCategoryByName(c.name);
+      let existing = null;
+
+      try {
+        existing = await categoryOperations.getCategoryByName(c.name);
+      } catch (err) {
+        console.warn('⚠️ Seed lookup failed:', err.message);
+      }
+
       if (!existing) {
         await categoryOperations.createCategory({
           categoryId: Date.now().toString(),
           ...c,
         });
+
+        console.log(`✅ Seeded category: ${c.name}`);
       }
+
     } catch (err) {
-      console.error('Seed error:', err);
+      console.error('❌ Seed error:', err.message);
     }
   }
 };
 
-/* =========================
-   PRODUCT OPS (UNCHANGED)
-========================= */
+// =========================
+// PRODUCT OPERATIONS
+// =========================
 const productOperations = {
   async createProduct(data) {
     await docClient.put({
       TableName: PRODUCT_TABLE,
-      Item: {
-        ...data,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      Item: data,
     }).promise();
   },
 
@@ -133,23 +155,14 @@ const productOperations = {
       TableName: PRODUCT_TABLE,
       Key: { productId },
     }).promise();
+
     return res.Item;
   },
 
   async updateProduct(productId, data) {
-    return docClient.update({
+    return docClient.put({
       TableName: PRODUCT_TABLE,
-      Key: { productId },
-      UpdateExpression: 'SET #data = :data, #updatedAt = :updatedAt',
-      ExpressionAttributeNames: {
-        '#data': 'data',
-        '#updatedAt': 'updatedAt',
-      },
-      ExpressionAttributeValues: {
-        ':data': data,
-        ':updatedAt': new Date().toISOString(),
-      },
-      ReturnValues: 'ALL_NEW',
+      Item: data,
     }).promise();
   },
 
@@ -166,21 +179,24 @@ const productOperations = {
       },
     }).promise();
   },
+
+  async listProducts() {
+    const res = await docClient.scan({
+      TableName: PRODUCT_TABLE,
+    }).promise();
+
+    return res.Items;
+  },
 };
 
-/* =========================
-   CATEGORY OPS (FIXED ✅)
-========================= */
+// =========================
+// CATEGORY OPERATIONS (FIXED)
+// =========================
 const categoryOperations = {
   async createCategory(data) {
     await docClient.put({
       TableName: CATEGORY_TABLE,
-      Item: {
-        ...data,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
+      Item: data,
     }).promise();
   },
 
@@ -189,16 +205,24 @@ const categoryOperations = {
       TableName: CATEGORY_TABLE,
       Key: { categoryId },
     }).promise();
+
     return res.Item;
   },
 
+  // ✅ FIXED (reserved keyword handled)
   async getCategoryByName(name) {
     const res = await docClient.query({
       TableName: CATEGORY_TABLE,
       IndexName: 'NameIndex',
-      KeyConditionExpression: 'name = :name',
-      ExpressionAttributeValues: { ':name': name },
+      KeyConditionExpression: '#name = :name',
+      ExpressionAttributeNames: {
+        '#name': 'name',
+      },
+      ExpressionAttributeValues: {
+        ':name': name,
+      },
     }).promise();
+
     return res.Items[0];
   },
 
@@ -206,51 +230,42 @@ const categoryOperations = {
     const res = await docClient.scan({
       TableName: CATEGORY_TABLE,
       FilterExpression: '#isActive = :true',
-      ExpressionAttributeNames: { '#isActive': 'isActive' },
-      ExpressionAttributeValues: { ':true': true },
+      ExpressionAttributeNames: {
+        '#isActive': 'isActive',
+      },
+      ExpressionAttributeValues: {
+        ':true': true,
+      },
     }).promise();
+
     return res.Items;
   },
 
-  // ✅ FIXED UPDATE
   async updateCategory(categoryId, data) {
-    return docClient.update({
+    return docClient.put({
       TableName: CATEGORY_TABLE,
-      Key: { categoryId },
-      UpdateExpression: 'SET #name = :name, #desc = :desc, #updatedAt = :updatedAt',
-      ExpressionAttributeNames: {
-        '#name': 'name',
-        '#desc': 'description',
-        '#updatedAt': 'updatedAt',
-      },
-      ExpressionAttributeValues: {
-        ':name': data.name,
-        ':desc': data.description,
-        ':updatedAt': new Date().toISOString(),
-      },
-      ReturnValues: 'ALL_NEW',
+      Item: data,
     }).promise();
   },
 
-  // ✅ FIXED DELETE
   async deleteCategory(categoryId) {
     return docClient.update({
       TableName: CATEGORY_TABLE,
       Key: { categoryId },
-      UpdateExpression: 'SET #isActive = :false, #updatedAt = :updatedAt',
+      UpdateExpression: 'SET #isActive = :false',
       ExpressionAttributeNames: {
         '#isActive': 'isActive',
-        '#updatedAt': 'updatedAt',
       },
       ExpressionAttributeValues: {
         ':false': false,
-        ':updatedAt': new Date().toISOString(),
       },
-      ReturnValues: 'ALL_NEW',
     }).promise();
   },
 };
 
+// =========================
+// EXPORTS
+// =========================
 module.exports = {
   initializeDynamoDB,
   productOperations,
