@@ -13,7 +13,24 @@ const api = axios.create({
 });
 
 /* =========================
-   RESPONSE INTERCEPTOR ONLY
+   🔥 REQUEST INTERCEPTOR (ADD TOKEN)
+========================= */
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+
+    // attach token if present
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+/* =========================
+   RESPONSE INTERCEPTOR
 ========================= */
 api.interceptors.response.use(
   (response) => response,

@@ -3,13 +3,21 @@ const { body, validationResult } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const { categoryOperations } = require('../config/database');
 
+// ✅ IMPORT AUTH
+const {
+  authMiddleware,
+  adminMiddleware,
+} = require('../middleware/auth');
+
 const router = express.Router();
 
 /**
- * CREATE CATEGORY
+ * CREATE CATEGORY (ADMIN ONLY)
  */
 router.post(
   '/',
+  authMiddleware,
+  adminMiddleware,
   [
     body('name').trim().isLength({ min: 1, max: 100 }).withMessage('Name is required'),
     body('description').optional().trim().isLength({ max: 500 }),
@@ -30,20 +38,17 @@ router.post(
 
       let existingCategory = null;
 
-      // ✅ SAFE CHECK (avoid crash if function missing)
       if (categoryOperations.getCategoryByName) {
         try {
           existingCategory = await categoryOperations.getCategoryByName(name);
         } catch (err) {
-          console.warn('⚠️ getCategoryByName failed, skipping duplicate check:', err.message);
+          console.warn('⚠️ getCategoryByName failed:', err.message);
         }
       }
 
       if (existingCategory) {
         return res.status(400).json({
-          error: {
-            message: 'Category with this name already exists',
-          },
+          error: { message: 'Category already exists' },
         });
       }
 
@@ -58,51 +63,35 @@ router.post(
         updatedAt: new Date().toISOString(),
       };
 
-      // ✅ CREATE CATEGORY
       await categoryOperations.createCategory(newCategory);
 
-      // ✅ FETCH CREATED CATEGORY
-      let category = newCategory;
-      try {
-        category = await categoryOperations.getCategoryById(categoryId);
-      } catch (err) {
-        console.warn('⚠️ getCategoryById failed, returning created object');
-      }
-
-      res.status(201).json(category);
+      res.status(201).json(newCategory);
 
     } catch (error) {
-      console.error('🔥 FULL ERROR (CREATE CATEGORY):', JSON.stringify(error, null, 2));
-
+      console.error('🔥 CREATE ERROR:', error);
       res.status(500).json({
-        error: {
-          message: error.message || 'Internal server error',
-        },
+        error: { message: error.message || 'Internal server error' },
       });
     }
   }
 );
 
 /**
- * GET ALL CATEGORIES
+ * GET ALL (PUBLIC)
  */
 router.get('/', async (req, res) => {
   try {
     const categories = await categoryOperations.listCategories();
     res.json(Array.isArray(categories) ? categories : []);
   } catch (error) {
-    console.error('🔥 FULL ERROR (GET ALL):', JSON.stringify(error, null, 2));
-
     res.status(500).json({
-      error: {
-        message: error.message || 'Internal server error',
-      },
+      error: { message: error.message || 'Internal server error' },
     });
   }
 });
 
 /**
- * GET CATEGORY BY ID
+ * GET BY ID (PUBLIC)
  */
 router.get('/:categoryId', async (req, res) => {
   try {
@@ -112,54 +101,12 @@ router.get('/:categoryId', async (req, res) => {
 
     if (!category || category.isActive === false) {
       return res.status(404).json({
-        error: {
-          message: 'Category not found',
-        },
+        error: { message: 'Category not found' },
       });
     }
 
     res.json(category);
   } catch (error) {
-    console.error('🔥 FULL ERROR (GET BY ID):', JSON.stringify(error, null, 2));
-
-    res.status(500).json({
-      error: {
-        message: error.message || 'Internal server error',
-      },
-    });
-  }
-});
-
-/**
- * UPDATE CATEGORY
- */
-router.put('/:categoryId', async (req, res) => {
-  try {
-    const { categoryId } = req.params;
-    const { name, description } = req.body;
-
-    const existingCategory = await categoryOperations.getCategoryById(categoryId);
-    if (!existingCategory) {
-      return res.status(404).json({
-        error: { message: 'Category not found' },
-      });
-    }
-
-    const updatedData = {
-      ...existingCategory,
-      name: name || existingCategory.name,
-      description: description || existingCategory.description,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await categoryOperations.updateCategory(categoryId, updatedData);
-
-    const updatedCategory = await categoryOperations.getCategoryById(categoryId);
-
-    res.json(updatedCategory);
-  } catch (error) {
-    console.error('🔥 FULL ERROR (UPDATE):', JSON.stringify(error, null, 2));
-
     res.status(500).json({
       error: { message: error.message || 'Internal server error' },
     });
@@ -167,29 +114,75 @@ router.put('/:categoryId', async (req, res) => {
 });
 
 /**
- * DELETE CATEGORY
+ * UPDATE (ADMIN ONLY)
  */
-router.delete('/:categoryId', async (req, res) => {
-  try {
-    const { categoryId } = req.params;
+router.put(
+  '/:categoryId',
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const { name, description } = req.body;
 
-    const existingCategory = await categoryOperations.getCategoryById(categoryId);
-    if (!existingCategory) {
-      return res.status(404).json({
-        error: { message: 'Category not found' },
+      const existing = await categoryOperations.getCategoryById(categoryId);
+
+      if (!existing) {
+        return res.status(404).json({
+          error: { message: 'Category not found' },
+        });
+      }
+
+      const updated = {
+        ...existing,
+        name: name || existing.name,
+        description: description || existing.description,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await categoryOperations.updateCategory(categoryId, updated);
+
+      res.json(updated);
+
+    } catch (error) {
+      console.error('🔥 UPDATE ERROR:', error);
+      res.status(500).json({
+        error: { message: error.message || 'Internal server error' },
       });
     }
-
-    await categoryOperations.deleteCategory(categoryId);
-
-    res.json({ message: 'Category deleted successfully' });
-  } catch (error) {
-    console.error('🔥 FULL ERROR (DELETE):', JSON.stringify(error, null, 2));
-
-    res.status(500).json({
-      error: { message: error.message || 'Internal server error' },
-    });
   }
-});
+);
+
+/**
+ * DELETE (ADMIN ONLY)
+ */
+router.delete(
+  '/:categoryId',
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+
+      const existing = await categoryOperations.getCategoryById(categoryId);
+
+      if (!existing) {
+        return res.status(404).json({
+          error: { message: 'Category not found' },
+        });
+      }
+
+      await categoryOperations.deleteCategory(categoryId);
+
+      res.json({ message: 'Category deleted successfully' });
+
+    } catch (error) {
+      console.error('🔥 DELETE ERROR:', error);
+      res.status(500).json({
+        error: { message: error.message || 'Internal server error' },
+      });
+    }
+  }
+);
 
 module.exports = router;
