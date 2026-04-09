@@ -67,20 +67,12 @@ async function updateProduct(productId, product) {
 
 
 // 🚀 DELETE PRODUCT
-async function deleteProduct(productId) {
-  try {
-    await client.delete({
-      index: OPENSEARCH_INDEX,
-      id: productId,
-      refresh: true,
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("❌ deleteProduct error:", error);
-    throw error;
-  }
-}
+const deleteProduct = async (productId) => {
+  return client.delete({
+    index: process.env.OPENSEARCH_INDEX || 'products',
+    id: productId,
+  });
+};
 
 
 // 🔍 SEARCH OPERATIONS

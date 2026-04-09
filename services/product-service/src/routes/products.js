@@ -8,17 +8,18 @@ const { productOperations, categoryOperations } = require('../config/database');
 
 const router = express.Router();
 
-// ✅ K8s internal service
+/* =========================
+   CONFIG
+========================= */
 const SEARCH_SERVICE_URL =
   process.env.SEARCH_SERVICE_URL || 'http://search-service:3003';
 
-// ✅ axios instance
 const http = axios.create({
   timeout: 5000,
 });
 
 /* =========================
-   🔥 DEPLOYMENT INFO (NEW)
+   DEPLOYMENT INFO
 ========================= */
 router.get('/deployment-info', (req, res) => {
   res.json({
@@ -39,9 +40,9 @@ router.get('/health/info', (req, res) => {
   });
 });
 
-/**
- * CREATE PRODUCT - ADMIN ONLY
- */
+/* =========================
+   CREATE PRODUCT
+========================= */
 router.post(
   '/',
   authMiddleware,
@@ -73,31 +74,10 @@ router.post(
         attributes,
       } = req.body;
 
-      let category = null;
-      try {
-        category = await categoryOperations.getCategoryById(categoryId);
-      } catch (err) {
-        console.warn('⚠️ Category fetch failed:', err.message);
-      }
-
+      const category = await categoryOperations.getCategoryById(categoryId);
       if (!category) {
         return res.status(404).json({
           error: { message: 'Category not found' },
-        });
-      }
-
-      let existingProduct = null;
-      if (productOperations.getProductBySku) {
-        try {
-          existingProduct = await productOperations.getProductBySku(sku);
-        } catch (err) {
-          console.warn('⚠️ SKU check failed:', err.message);
-        }
-      }
-
-      if (existingProduct) {
-        return res.status(400).json({
-          error: { message: 'Product with this SKU already exists' },
         });
       }
 
@@ -121,16 +101,15 @@ router.post(
 
       await productOperations.createProduct(newProduct);
 
-      let product = newProduct;
-      try {
-        product = await productOperations.getProductById(productId);
-      } catch {}
+      const product = await productOperations.getProductById(productId);
 
-      // 🔥 Index to search
+      // 🔥 AUTO INDEX (FIXED)
       try {
         await http.post(
-          `${SEARCH_SERVICE_URL}/api/index/product/${productId}`
+          `${SEARCH_SERVICE_URL}/api/search/index`,
+          product
         );
+        console.log('✅ Product indexed');
       } catch (err) {
         console.error('❌ Indexing failed:', err.message);
       }
@@ -138,17 +117,17 @@ router.post(
       res.status(201).json(product);
 
     } catch (error) {
-      console.error('🔥 CREATE PRODUCT ERROR:', error);
+      console.error('🔥 CREATE ERROR:', error);
       res.status(500).json({
-        error: { message: error.message || 'Internal server error' },
+        error: { message: error.message },
       });
     }
   }
 );
 
-/**
- * GET PRODUCTS
- */
+/* =========================
+   GET PRODUCTS
+========================= */
 router.get(
   '/',
   [
@@ -183,14 +162,12 @@ router.get(
   }
 );
 
-/**
- * GET PRODUCT BY ID
- */
+/* =========================
+   GET PRODUCT BY ID
+========================= */
 router.get('/:productId', async (req, res) => {
   try {
-    const { productId } = req.params;
-
-    const product = await productOperations.getProductById(productId);
+    const product = await productOperations.getProductById(req.params.productId);
 
     if (!product || product.isActive === false) {
       return res.status(404).json({
@@ -208,35 +185,37 @@ router.get('/:productId', async (req, res) => {
   }
 });
 
-/**
- * UPDATE PRODUCT
- */
+/* =========================
+   UPDATE PRODUCT
+========================= */
 router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { productId } = req.params;
 
-    const existingProduct = await productOperations.getProductById(productId);
-    if (!existingProduct) {
+    const existing = await productOperations.getProductById(productId);
+    if (!existing) {
       return res.status(404).json({
         error: { message: 'Product not found' },
       });
     }
 
-    const updatedData = {
-      ...existingProduct,
+    const updated = {
+      ...existing,
       ...req.body,
       updatedAt: new Date().toISOString(),
     };
 
-    await productOperations.updateProduct(productId, updatedData);
+    await productOperations.updateProduct(productId, updated);
 
     const updatedProduct = await productOperations.getProductById(productId);
 
+    // 🔥 AUTO UPDATE INDEX
     try {
       await http.put(
-        `${SEARCH_SERVICE_URL}/api/index/product/${productId}`,
+        `${SEARCH_SERVICE_URL}/api/search/index/${productId}`,
         updatedProduct
       );
+      console.log('🔄 Index updated');
     } catch (err) {
       console.error('❌ Index update failed:', err.message);
     }
@@ -244,22 +223,22 @@ router.put('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
     res.json(updatedProduct);
 
   } catch (error) {
-    console.error('🔥 UPDATE PRODUCT ERROR:', error);
+    console.error('🔥 UPDATE ERROR:', error);
     res.status(500).json({
       error: { message: error.message },
     });
   }
 });
 
-/**
- * DELETE PRODUCT
- */
+/* =========================
+   DELETE PRODUCT
+========================= */
 router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { productId } = req.params;
 
-    const existingProduct = await productOperations.getProductById(productId);
-    if (!existingProduct) {
+    const existing = await productOperations.getProductById(productId);
+    if (!existing) {
       return res.status(404).json({
         error: { message: 'Product not found' },
       });
@@ -267,10 +246,12 @@ router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) =
 
     await productOperations.deleteProduct(productId);
 
+    // 🔥 AUTO DELETE INDEX
     try {
       await http.delete(
-        `${SEARCH_SERVICE_URL}/api/index/product/${productId}`
+        `${SEARCH_SERVICE_URL}/api/search/index/${productId}`
       );
+      console.log('🗑 Index deleted');
     } catch (err) {
       console.error('❌ Index delete failed:', err.message);
     }
@@ -278,7 +259,7 @@ router.delete('/:productId', authMiddleware, adminMiddleware, async (req, res) =
     res.json({ message: 'Product deleted successfully' });
 
   } catch (error) {
-    console.error('🔥 DELETE PRODUCT ERROR:', error);
+    console.error('🔥 DELETE ERROR:', error);
     res.status(500).json({
       error: { message: error.message },
     });
