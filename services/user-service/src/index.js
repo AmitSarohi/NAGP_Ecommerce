@@ -20,7 +20,6 @@ const PORT = process.env.PORT || 3001;
 
 let server;
 
-
 /* =========================
    SEED ADMIN USER
 ========================= */
