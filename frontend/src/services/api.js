@@ -37,7 +37,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      console.warn('Unauthorized - token issue');
+      console.log('Unauthorized - token issue');
     }
     return Promise.reject(error);
   }
