@@ -79,7 +79,7 @@ const SearchPage = () => {
   ========================= */
   const handleSearch = (e) => {
     e.preventDefault();
-
+    console.log("Search clicked:", searchQuery); // 👈 ADD
     if (!searchQuery.trim()) return;
 
     setSearchParams({ q: searchQuery.trim() });
