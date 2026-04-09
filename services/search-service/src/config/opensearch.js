@@ -140,27 +140,40 @@ const searchOperations = {
   },
 
   buildSearchQuery(query, filters) {
-    const must = [];
-    const filter = [{ term: { isActive: true } }];
+  const must = [];
+  const filter = [];
 
-    if (query && query.trim()) {
-      must.push({
-        multi_match: {
-          query,
-          fields: ['name^5', 'description^2', 'sku^4'],
-          fuzziness: 'AUTO',
+  if (query && query.trim()) {
+    must.push({
+      multi_match: {
+        query,
+        fields: ['name^5', 'description^2', 'sku^3'],
+        fuzziness: 'AUTO',
+      },
+    });
+  } else {
+    must.push({ match_all: {} });
+  }
+
+  if (filters.categoryId) {
+    filter.push({ term: { categoryId: filters.categoryId } });
+  }
+
+  if (filters.minPrice || filters.maxPrice) {
+    filter.push({
+      range: {
+        price: {
+          ...(filters.minPrice && { gte: filters.minPrice }),
+          ...(filters.maxPrice && { lte: filters.maxPrice }),
         },
-      });
-    }
+      },
+    });
+  }
 
-    if (filters.categoryId) {
-      filter.push({ term: { categoryId: filters.categoryId } });
-    }
-
-    return {
-      bool: { must, filter },
-    };
-  },
+  return {
+    bool: { must, filter },
+  };
+},
 
   buildSortQuery(sort) {
     return [{ _score: 'desc' }];

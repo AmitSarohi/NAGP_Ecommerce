@@ -6,23 +6,29 @@ const API_BASE_URL = '/api';
 // Axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 15000, // ⬆️ increased timeout
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
 /* =========================
-   🔥 REQUEST INTERCEPTOR (ADD TOKEN)
+   🔥 REQUEST INTERCEPTOR (ADD TOKEN + DEBUG)
 ========================= */
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
 
-    // attach token if present
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // ✅ DEBUG LOG
+    console.log('➡️ API Request:', {
+      url: config.url,
+      method: config.method,
+      params: config.params,
+    });
 
     return config;
   },
@@ -30,19 +36,34 @@ api.interceptors.request.use(
 );
 
 /* =========================
-   RESPONSE INTERCEPTOR
+   RESPONSE INTERCEPTOR (BETTER DEBUG)
 ========================= */
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ API Response:', response.config.url, response.data);
+    return response;
+  },
   (error) => {
+    console.error('❌ API Error:', error.response?.data || error.message);
+
     if (error.response?.status === 401) {
+      console.warn('🔒 Unauthorized - clearing token');
       localStorage.removeItem('token');
-      console.warn('Unauthorized - token issue');
-      console.log('Unauthorized - token issue');
     }
+
     return Promise.reject(error);
   }
 );
+
+/* =========================
+   🔍 SEARCH API (NEW - IMPORTANT)
+========================= */
+export const searchAPI = {
+  search: async (params = {}) => {
+    const res = await api.get('/search', { params });
+    return res.data;
+  },
+};
 
 /* =========================
    PRODUCT API
@@ -73,6 +94,7 @@ export const productAPI = {
     return res.data;
   },
 
+  // ⚠️ keep if needed, but NOT used for global search
   searchProducts: async (searchTerm, params = {}) => {
     const res = await api.get('/products', {
       params: { search: searchTerm, ...params },

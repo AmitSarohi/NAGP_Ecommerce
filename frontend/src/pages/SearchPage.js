@@ -11,13 +11,12 @@ import {
 import {
   Search as SearchIcon,
   ExpandMore as ExpandMoreIcon,
-  ShoppingCart as CartIcon,
 } from '@mui/icons-material';
 
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import api from '../services/api'; // ✅ FIX
+import api from '../services/api';
 
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -33,11 +32,13 @@ const SearchPage = () => {
   const [page, setPage] = useState(1);
 
   /* =========================
-     SEARCH API
+     SEARCH API (FIXED)
   ========================= */
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['search', searchQuery, filters, page],
     queryFn: async () => {
+      console.log("🔥 API CALL:", { searchQuery, filters, page });
+
       const res = await api.get('/search', {
         params: {
           q: searchQuery,
@@ -46,9 +47,12 @@ const SearchPage = () => {
           ...filters,
         },
       });
+
+      console.log("✅ RESPONSE:", res.data);
+
       return res.data;
     },
-    enabled: !!searchQuery,
+    enabled: false, // ❗ manual trigger
     keepPreviousData: true,
   });
 
@@ -71,33 +75,55 @@ const SearchPage = () => {
     if (query) {
       setSearchQuery(query);
       setPage(1);
+
+      // 🔥 trigger API when URL changes
+      setTimeout(() => refetch(), 0);
     }
   }, [searchParams]);
 
   /* =========================
-     HANDLERS
+     HANDLERS (FIXED)
   ========================= */
   const handleSearch = (e) => {
     e.preventDefault();
-    console.log("Search clicked:", searchQuery); // 👈 ADD
-    if (!searchQuery.trim()) return;
 
-    setSearchParams({ q: searchQuery.trim() });
+    const value = searchQuery.trim();
+
+    console.log("🔍 Search clicked:", value);
+
+    if (!value) {
+      alert("Enter search term");
+      return;
+    }
+
+    setSearchQuery(value);
+    setSearchParams({ q: value });
     setPage(1);
+
+    // 🔥 force API call
+    refetch();
   };
 
   const handleFilterChange = (key, value) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     setPage(1);
+
+    // 🔥 trigger API on filter change
+    setTimeout(() => refetch(), 0);
   };
 
   const handlePriceChange = (_, val) => {
-    setFilters((prev) => ({
-      ...prev,
+    const newFilters = {
+      ...filters,
       minPrice: val[0],
       maxPrice: val[1],
-    }));
+    };
+
+    setFilters(newFilters);
+    setPage(1);
+
+    setTimeout(() => refetch(), 0);
   };
 
   const formatPrice = (price) =>
@@ -159,7 +185,7 @@ const SearchPage = () => {
               <Typography gutterBottom>Price</Typography>
               <Slider
                 value={[filters.minPrice, filters.maxPrice]}
-                onChange={handlePriceChange} // ✅ FIX
+                onChange={handlePriceChange}
                 min={0}
                 max={1000}
               />
@@ -198,10 +224,6 @@ const SearchPage = () => {
                     <CardActions>
                       <Button onClick={() => navigate(`/product/${p.productId}`)}>
                         View
-                      </Button>
-
-                      <Button disabled={!p.inventoryCount}>
-                        Add to Cart
                       </Button>
                     </CardActions>
 

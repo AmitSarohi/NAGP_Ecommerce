@@ -5,7 +5,7 @@ const { searchOperations } = require('../config/opensearch');
 const router = express.Router();
 
 /* =========================
-   🔥 DEPLOYMENT INFO (NEW)
+   🔥 DEPLOYMENT INFO (KEEP THIS)
 ========================= */
 router.get('/deployment-info', (req, res) => {
   res.json({
@@ -15,7 +15,7 @@ router.get('/deployment-info', (req, res) => {
 });
 
 /* =========================
-   HEALTH INFO
+   🔥 HEALTH INFO (KEEP THIS)
 ========================= */
 router.get('/health/info', (req, res) => {
   res.status(200).json({
@@ -27,7 +27,7 @@ router.get('/health/info', (req, res) => {
 });
 
 /* =========================
-   SEARCH PRODUCTS
+   🔍 SEARCH PRODUCTS (FIXED)
 ========================= */
 router.get(
   '/',
@@ -37,16 +37,6 @@ router.get(
     query('minPrice').optional().isFloat({ min: 0 }),
     query('maxPrice').optional().isFloat({ min: 0 }),
     query('inStock').optional().isIn(['true', 'false']),
-    query('sortBy')
-      .optional()
-      .isIn([
-        'relevance',
-        'price_asc',
-        'price_desc',
-        'name_asc',
-        'name_desc',
-        'newest',
-      ]),
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
   ],
@@ -69,7 +59,6 @@ router.get(
         minPrice,
         maxPrice,
         inStock,
-        sortBy = 'relevance',
         page = 1,
         limit = 20,
       } = req.query;
@@ -90,12 +79,9 @@ router.get(
         filters.inStock = inStock === 'true';
       }
 
-      const sort = { sortBy };
-
-      console.log('🔍 Search Request:', {
+      console.log('🔍 SEARCH REQUEST:', {
         q,
         filters,
-        sort,
         page,
         limit,
       });
@@ -103,10 +89,12 @@ router.get(
       const results = await searchOperations.searchProducts(
         q,
         filters,
-        sort,
+        {},
         parseInt(page),
         parseInt(limit)
       );
+
+      console.log('✅ SEARCH RESULT COUNT:', results.products?.length || 0);
 
       res.json(results);
 
