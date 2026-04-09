@@ -9,16 +9,18 @@ data:
   AWS_REGION: "eu-north-1"
   DYNAMODB_REGION: "eu-north-1"
   USER_TABLE: "users"
+
+  # 🔥 ADD THIS
+  JWT_SECRET: "super-secret-key"
+
   JWT_EXPIRES_IN: "24h"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "100"
-  DEPLOYMENT_GUID: "dev"  # Updated by CI/CD pipeline
+  DEPLOYMENT_GUID: "dev"
+
   GOOGLE_CALLBACK_URL: "/api/auth/google/callback"
   FRONTEND_URL: "http://k8s-ecommerc-ecommerc-1fd3f85608-984526790.eu-north-1.elb.amazonaws.com"
-  # Google OAuth credentials set via secrets:
-  # GOOGLE_CLIENT_ID: from user-service-secrets
-  # GOOGLE_CLIENT_SECRET: from user-service-secrets
-  # Admin user configuration
+
   ADMIN_EMAIL: "admin@nagp.com"
   ADMIN_PASSWORD: "admin123"
   ADMIN_FIRST_NAME: "Admin"
@@ -37,11 +39,15 @@ data:
   DYNAMODB_REGION: "eu-north-1"
   PRODUCT_TABLE: "products"
   CATEGORY_TABLE: "categories"
+
+  # 🔥 ADD THIS
+  JWT_SECRET: "super-secret-key"
+
   AWS_S3_REGION: "eu-north-1"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "200"
   SEARCH_SERVICE_URL: "http://search-service:3003"
-  DEPLOYMENT_GUID: "dev"  # Updated by CI/CD pipeline
+  DEPLOYMENT_GUID: "dev"
 
 ---
 apiVersion: v1
@@ -52,11 +58,15 @@ metadata:
 data:
   NODE_ENV: "production"
   PORT: "3003"
+
+  # 🔥 ADD THIS (future safe)
+  JWT_SECRET: "super-secret-key"
+
   OPENSEARCH_INDEX: "products"
-  PRODUCT_SERVICE_URL: "http://product-service:3002"  # ✅ correct (internal)
+  PRODUCT_SERVICE_URL: "http://product-service:3002"
   RATE_LIMIT_WINDOW_MS: "900000"
   RATE_LIMIT_MAX_REQUESTS: "300"
-  DEPLOYMENT_GUID: "dev"  # Updated by CI/CD pipeline
+  DEPLOYMENT_GUID: "dev"
 
 ---
 apiVersion: v1
@@ -69,5 +79,4 @@ data:
   REACT_APP_SEARCH_SERVICE_URL: "/api/search"
   REACT_APP_API_URL: "/api"
   REACT_APP_DEPLOYMENT_GUID: "PROD"
-  # Google OAuth Client ID for frontend - set this to your actual Client ID
   REACT_APP_GOOGLE_CLIENT_ID: "984077045435-4dpo91mec51mr56uck9vjhjeajqdk1r1.apps.googleusercontent.com"
