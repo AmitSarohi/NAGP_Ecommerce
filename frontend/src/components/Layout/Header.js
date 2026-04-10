@@ -79,7 +79,7 @@ const Header = () => {
           onClick={() => navigate('/')}
           sx={{ cursor: 'pointer', fontWeight: 600 }}
         >
-          E-Commerce
+          E-Commerce-Test
         </Typography>
 
         {/* ROLE CHIP */}
